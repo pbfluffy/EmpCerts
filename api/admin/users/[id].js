@@ -41,12 +41,19 @@ async function handler(req, res) {
       return res.status(400).json({ error: 'You cannot delete your own account while logged in as it' });
     }
 
-    // Block deletion if this employee has certificate requests on file —
-    // deleting them would break the audit trail / referential integrity.
-    const linkedRequests = await all('SELECT request_id FROM certificate_requests WHERE employee_id = ? LIMIT 1', [id]);
-    if (linkedRequests.length > 0) {
+    // Users can never be permanently deleted once they have ANY certificate
+    // history on record — as a submitter, an approver/rejecter, or in the
+    // approvals audit log — since deleting them would erase or corrupt that
+    // record. Disable the account instead; deletion is only for accounts
+    // that were created but never actually used.
+    const [submitted, approved, approvalLog] = await Promise.all([
+      all('SELECT request_id FROM certificate_requests WHERE employee_id = ? LIMIT 1', [id]),
+      all('SELECT request_id FROM certificate_requests WHERE approver_id = ? LIMIT 1', [id]),
+      all('SELECT approval_id FROM approvals WHERE approver_id = ? LIMIT 1', [id])
+    ]);
+    if (submitted.length > 0 || approved.length > 0 || approvalLog.length > 0) {
       return res.status(409).json({
-        error: 'Cannot delete: this user has certificate request history on file. Disable the account instead.'
+        error: `Cannot delete "${target.full_name}": this account has certificate request history on file (as a submitter, approver, or both). Deleting it would erase official records. Use "Disable" instead to revoke access while preserving the audit trail.`
       });
     }
 

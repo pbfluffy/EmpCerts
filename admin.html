@@ -45,9 +45,18 @@
 
     <div class="card">
       <h2>Users</h2>
+      <input type="text" id="userSearch" placeholder="Search by name, username, email, or department..." style="margin-bottom:14px">
+
+      <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Active</h3>
       <table>
-        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th>Status</th><th></th></tr></thead>
-        <tbody id="userRows"><tr><td colspan="7">Loading...</td></tr></tbody>
+        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th></th></tr></thead>
+        <tbody id="activeUserRows"><tr><td colspan="6">Loading...</td></tr></tbody>
+      </table>
+
+      <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin:20px 0 8px">Disabled</h3>
+      <table>
+        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th></th></tr></thead>
+        <tbody id="disabledUserRows"><tr><td colspan="6">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -143,13 +152,23 @@ function showTab(tab) {
   document.getElementById('tabRolesBtn').classList.toggle('active', tab === 'roles');
 }
 
+let allUsers = [];
+
 async function loadUsers() {
   const { users } = await api('GET', '/api/admin/users');
-  document.getElementById('userRows').innerHTML = users.map(u => `
+  allUsers = users;
+  renderUserTables();
+}
+
+function renderUserTables() {
+  const query = document.getElementById('userSearch').value.trim().toLowerCase();
+  const matches = (u) => !query || [u.username, u.full_name, u.email, u.department, u.position]
+    .filter(Boolean).some(field => field.toLowerCase().includes(query));
+
+  const rowHtml = (u) => `
     <tr>
       <td>${u.employee_id}</td><td>${u.username}</td><td>${u.full_name}</td>
       <td>${u.department || ''}</td><td>${u.role}</td>
-      <td>${u.status}</td>
       <td>
         <button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
           ${u.status === 'active' ? 'Disable' : 'Enable'}
@@ -157,8 +176,21 @@ async function loadUsers() {
         ${u.status === 'disabled' ? `<button class="btn small danger" onclick="deleteUser(${u.employee_id}, '${u.username}')">Delete</button>` : ''}
       </td>
     </tr>
-  `).join('');
+  `;
+
+  const active = allUsers.filter(u => u.status === 'active' && matches(u));
+  const disabled = allUsers.filter(u => u.status === 'disabled' && matches(u));
+
+  document.getElementById('activeUserRows').innerHTML = active.length > 0
+    ? active.map(rowHtml).join('')
+    : `<tr><td colspan="6">${query ? 'No matches.' : 'No active users.'}</td></tr>`;
+
+  document.getElementById('disabledUserRows').innerHTML = disabled.length > 0
+    ? disabled.map(rowHtml).join('')
+    : `<tr><td colspan="6">${query ? 'No matches.' : 'No disabled users.'}</td></tr>`;
 }
+
+document.getElementById('userSearch').addEventListener('input', renderUserTables);
 
 async function toggleStatus(id, currentStatus) {
   const status = currentStatus === 'active' ? 'disabled' : 'active';
