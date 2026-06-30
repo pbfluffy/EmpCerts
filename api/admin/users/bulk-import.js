@@ -3,7 +3,7 @@ const { run, get, audit } = require('../../../lib/db');
 const { requireRole, readBody } = require('../../../lib/auth');
 
 const ROLES = ['employee', 'hr_staff', 'hr_director', 'admin'];
-const REQUIRED_HEADERS = ['username', 'password', 'full_name', 'email'];
+const REQUIRED_HEADERS = ['employee_id', 'username', 'password', 'full_name', 'email'];
 
 // Minimal CSV parser: handles quoted fields containing commas, and trims whitespace.
 function parseCSV(text) {
@@ -60,6 +60,7 @@ async function handler(req, res) {
     const rowNum = i + 2; // +1 for header row, +1 for 1-indexing
     const get_ = (col) => (colIndex[col] !== undefined ? (row[colIndex[col]] || '').trim() : '');
 
+    const employeeIdRaw = get_('employee_id');
     const username = get_('username');
     const password = get_('password');
     const full_name = get_('full_name');
@@ -68,28 +69,39 @@ async function handler(req, res) {
     const position = get_('position');
     let role = get_('role').toLowerCase() || 'employee';
 
-    if (!username || !password || !full_name || !email) {
-      results.skipped.push({ row: rowNum, reason: 'Missing required field(s) (username, password, full_name, email)' });
+    if (!employeeIdRaw || !username || !password || !full_name || !email) {
+      results.skipped.push({ row: rowNum, reason: 'Missing required field(s) (Employee_ID, username, password, full_name, email)' });
       continue;
     }
+
+    const employeeId = Number(employeeIdRaw);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      results.skipped.push({ row: rowNum, username, reason: `Invalid Employee_ID "${employeeIdRaw}" — must be a positive whole number` });
+      continue;
+    }
+
     if (!ROLES.includes(role)) {
       results.skipped.push({ row: rowNum, username, reason: `Invalid role "${role}" — must be one of ${ROLES.join(', ')}` });
       continue;
     }
 
-    const existing = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
-    if (existing) {
+    const existingId = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [employeeId]);
+    if (existingId) {
+      results.skipped.push({ row: rowNum, username, reason: `Employee_ID ${employeeId} is already in use` });
+      continue;
+    }
+    const existingUsername = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
+    if (existingUsername) {
       results.skipped.push({ row: rowNum, username, reason: 'Username already exists' });
       continue;
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const result = await run(`
-      INSERT INTO employees (username, password_hash, full_name, department, position, email, role)
-      VALUES (?,?,?,?,?,?,?)
-    `, [username, hash, full_name, department || null, position || null, email, role]);
+    await run(`
+      INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role)
+      VALUES (?,?,?,?,?,?,?,?)
+    `, [employeeId, username, hash, full_name, department || null, position || null, email, role]);
 
-    const employeeId = Number(result.lastInsertRowid);
     results.created.push({ row: rowNum, employee_id: employeeId, username, role });
   }
 

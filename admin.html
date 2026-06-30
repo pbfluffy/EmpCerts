@@ -10,55 +10,82 @@
 <div class="container">
   <div class="nav-tabs" id="nav"></div>
 
-  <div class="card">
-    <h2>Bulk Import Users (CSV)</h2>
-    <p class="hint">
-      CSV columns: <code>username,password,full_name,department,position,email,role</code><br>
-      <code>role</code> must be one of: employee, hr_staff, hr_director, admin (defaults to employee if blank).<br>
-      <code>department</code> and <code>position</code> are optional.
-    </p>
-    <a href="#" id="downloadTemplate" class="hint" style="display:inline-block;margin-bottom:10px">Download CSV template</a>
-    <input type="file" id="csvFile" accept=".csv">
-    <button class="btn" id="importBtn" type="button">Import Users</button>
-    <div class="error" id="importErr"></div>
-    <div class="success-msg" id="importOk"></div>
-    <div id="importDetails" style="margin-top:10px;font-size:13px"></div>
+  <div class="nav-tabs" style="margin-bottom:14px">
+    <a href="#" id="tabUsersBtn" class="active" onclick="showTab('users');return false;">Users</a>
+    <a href="#" id="tabRolesBtn" onclick="showTab('roles');return false;">Roles</a>
   </div>
 
-  <div class="card">
-    <h2>Create User</h2>
-    <form id="createForm">
-      <div class="flex-row">
-        <div style="flex:1"><label>Username</label><input id="c_username" required></div>
-        <div style="flex:1"><label>Temp Password</label><input id="c_password" required></div>
+  <div id="usersTab">
+    <div class="card">
+      <h2>Create User</h2>
+      <form id="createForm">
+        <div class="flex-row">
+          <div style="flex:1"><label>Username</label><input id="c_username" required></div>
+          <div style="flex:1"><label>Temp Password</label><input id="c_password" required></div>
+        </div>
+        <label>Full Name</label><input id="c_full_name" required>
+        <div class="flex-row">
+          <div style="flex:1"><label>Department</label><input id="c_department"></div>
+          <div style="flex:1"><label>Position</label><input id="c_position"></div>
+        </div>
+        <label>Email</label><input id="c_email" type="email" required>
+        <label>Role</label>
+        <select id="c_role">
+          <option value="employee">Employee</option>
+          <option value="hr_staff">HR Staff</option>
+          <option value="hr_director">HR Director</option>
+          <option value="admin">System Administrator</option>
+        </select>
+        <button class="btn" type="submit">Create User</button>
+        <div class="error" id="createErr"></div>
+        <div class="success-msg" id="createOk"></div>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Users</h2>
+      <table>
+        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody id="userRows"><tr><td colspan="7">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <details class="card">
+      <summary style="cursor:pointer;font-weight:600;font-size:14px">Bulk Import Users (CSV)</summary>
+      <div style="margin-top:14px">
+        <p class="hint">
+          CSV columns (in this order): <code>Employee_ID,username,password,full_name,department,position,email,role</code><br>
+          <code>Employee_ID</code> is required and must be a unique whole number — the user will be created with this exact ID in the system.<br>
+          <code>role</code> must be one of: employee, hr_staff, hr_director, admin (defaults to employee if blank).<br>
+          <code>department</code> and <code>position</code> are optional.
+        </p>
+        <a href="#" id="downloadTemplate" class="hint" style="display:inline-block;margin-bottom:10px">Download CSV template</a><br>
+        <input type="file" id="csvFile" accept=".csv">
+        <button class="btn" id="importBtn" type="button">Import Users</button>
+        <div class="error" id="importErr"></div>
+        <div class="success-msg" id="importOk"></div>
+        <div id="importDetails" style="margin-top:10px;font-size:13px"></div>
       </div>
-      <label>Full Name</label><input id="c_full_name" required>
-      <div class="flex-row">
-        <div style="flex:1"><label>Department</label><input id="c_department"></div>
-        <div style="flex:1"><label>Position</label><input id="c_position"></div>
-      </div>
-      <label>Email</label><input id="c_email" type="email" required>
-      <label>Role</label>
-      <select id="c_role">
-        <option value="employee">Employee</option>
-        <option value="hr_staff">HR Staff</option>
-        <option value="hr_director">HR Director</option>
-        <option value="admin">System Administrator</option>
-      </select>
-      <button class="btn" type="submit">Create User</button>
-      <div class="error" id="createErr"></div>
-      <div class="success-msg" id="createOk"></div>
-    </form>
+    </details>
   </div>
 
-  <div class="card">
-    <h2>Users</h2>
-    <table>
-      <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th>Permissions</th><th>Status</th><th></th></tr></thead>
-      <tbody id="userRows"><tr><td colspan="8">Loading...</td></tr></tbody>
-    </table>
+  <div id="rolesTab" style="display:none">
+    <div class="card">
+      <h2>Roles &amp; What They Can Do</h2>
+      <table>
+        <thead><tr><th>Role</th><th>Permissions</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Employee</strong></td><td>Submit certificate requests; view and download only their own certificates</td></tr>
+          <tr><td><strong>HR Staff</strong></td><td>Approve or reject non-salary certificate requests; view all employees' requests</td></tr>
+          <tr><td><strong>HR Director</strong></td><td>Approve or reject salary certificate requests, entering the official salary figure at approval time; view all employees' requests</td></tr>
+          <tr><td><strong>System Administrator</strong></td><td>User and role management only — create/edit/delete users, assign roles, enable/disable accounts. No access to certificate requests or approvals.</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
+
 </div>
+
 <script src="js/common.js"></script>
 <script>
 (async () => {
@@ -70,34 +97,28 @@
   await loadUsers();
 })();
 
+function showTab(tab) {
+  document.getElementById('usersTab').style.display = tab === 'users' ? '' : 'none';
+  document.getElementById('rolesTab').style.display = tab === 'roles' ? '' : 'none';
+  document.getElementById('tabUsersBtn').classList.toggle('active', tab === 'users');
+  document.getElementById('tabRolesBtn').classList.toggle('active', tab === 'roles');
+}
+
 async function loadUsers() {
   const { users } = await api('GET', '/api/admin/users');
   document.getElementById('userRows').innerHTML = users.map(u => `
     <tr>
       <td>${u.employee_id}</td><td>${u.username}</td><td>${u.full_name}</td>
       <td>${u.department || ''}</td><td>${u.role}</td>
-      <td style="font-size:12px;color:var(--muted)">${rolePermissions(u.role)}</td>
       <td>${u.status}</td>
-      <td><button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
-        ${u.status === 'active' ? 'Disable' : 'Enable'}
-      </button></td>
+      <td>
+        <button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
+          ${u.status === 'active' ? 'Disable' : 'Enable'}
+        </button>
+        ${u.status === 'disabled' ? `<button class="btn small danger" onclick="deleteUser(${u.employee_id}, '${u.username}')">Delete</button>` : ''}
+      </td>
     </tr>
   `).join('');
-}
-
-function rolePermissions(role) {
-  switch (role) {
-    case 'employee':
-      return 'Submit requests; view/download own certificates only';
-    case 'hr_staff':
-      return 'Approve/reject non-salary certificate requests; view all requests';
-    case 'hr_director':
-      return 'Approve/reject salary certificate requests (enters salary figure)';
-    case 'admin':
-      return 'User & role management only (no access to requests/approvals)';
-    default:
-      return '';
-  }
 }
 
 async function toggleStatus(id, currentStatus) {
@@ -106,10 +127,20 @@ async function toggleStatus(id, currentStatus) {
   await loadUsers();
 }
 
+async function deleteUser(id, username) {
+  if (!confirm(`Permanently delete user "${username}"? This cannot be undone.`)) return;
+  try {
+    await api('DELETE', `/api/admin/users/${id}`);
+    await loadUsers();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
 document.getElementById('downloadTemplate').addEventListener('click', (e) => {
   e.preventDefault();
-  const csv = 'username,password,full_name,department,position,email,role\n' +
-              'jdoe,TempPass123,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
+  const csv = 'Employee_ID,username,password,full_name,department,position,email,role\n' +
+              '1001,jdoe,TempPass123,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -140,7 +171,7 @@ document.getElementById('importBtn').addEventListener('click', async () => {
     let html = '';
     if (result.created.length > 0) {
       html += '<strong>Created:</strong><ul>' +
-        result.created.map(c => `<li>Row ${c.row}: ${c.username} (${c.role})</li>`).join('') +
+        result.created.map(c => `<li>Row ${c.row}: Employee_ID ${c.employee_id} — ${c.username} (${c.role})</li>`).join('') +
         '</ul>';
     }
     if (result.skipped.length > 0) {
