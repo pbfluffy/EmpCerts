@@ -11,6 +11,7 @@
     "cookie": "^0.6.0",
     "dotenv": "^16.4.5",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.14",
     "pdfkit": "^0.15.0"
   }
 }

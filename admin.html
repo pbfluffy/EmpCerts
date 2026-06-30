@@ -39,8 +39,8 @@
   <div class="card">
     <h2>Users</h2>
     <table>
-      <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th>Status</th><th></th></tr></thead>
-      <tbody id="userRows"><tr><td colspan="7">Loading...</td></tr></tbody>
+      <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th>Permissions</th><th>Status</th><th></th></tr></thead>
+      <tbody id="userRows"><tr><td colspan="8">Loading...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -61,12 +61,28 @@ async function loadUsers() {
     <tr>
       <td>${u.employee_id}</td><td>${u.username}</td><td>${u.full_name}</td>
       <td>${u.department || ''}</td><td>${u.role}</td>
+      <td style="font-size:12px;color:var(--muted)">${rolePermissions(u.role)}</td>
       <td>${u.status}</td>
       <td><button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
         ${u.status === 'active' ? 'Disable' : 'Enable'}
       </button></td>
     </tr>
   `).join('');
+}
+
+function rolePermissions(role) {
+  switch (role) {
+    case 'employee':
+      return 'Submit requests; view/download own certificates only';
+    case 'hr_staff':
+      return 'Approve/reject non-salary certificate requests; view all requests';
+    case 'hr_director':
+      return 'Approve/reject salary certificate requests (enters salary figure)';
+    case 'admin':
+      return 'User & role management only (no access to requests/approvals)';
+    default:
+      return '';
+  }
 }
 
 async function toggleStatus(id, currentStatus) {

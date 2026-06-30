@@ -45,9 +45,9 @@ function renderNav(user, active) {
   const el = document.getElementById('nav');
   if (!el) return;
   const tabs = [];
-  tabs.push({ href: 'dashboard.html', label: 'My Requests', roles: ['employee','hr_staff','hr_director','admin'] });
+  tabs.push({ href: 'dashboard.html', label: 'My Requests', roles: ['employee','hr_staff','hr_director'] });
   if (user.role === 'employee') tabs.push({ href: 'new-request.html', label: 'New Request', roles: ['employee'] });
-  tabs.push({ href: 'approvals.html', label: 'Approvals', roles: ['hr_director','admin'] });
+  tabs.push({ href: 'approvals.html', label: 'Approvals', roles: ['hr_staff','hr_director'] });
   tabs.push({ href: 'admin.html', label: 'Admin', roles: ['admin'] });
 
   el.innerHTML = tabs

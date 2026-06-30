@@ -10,12 +10,12 @@
 <div class="container">
   <div class="nav-tabs" id="nav"></div>
   <div class="card">
-    <h2>Pending Salary Certificate Approvals</h2>
+    <h2 id="queueTitle">Pending Approvals</h2>
     <table>
       <thead>
-        <tr><th>ID</th><th>Employee</th><th>Dept / Position</th><th>Reason</th><th>Salary</th><th>Remarks</th><th>Submitted</th><th></th></tr>
+        <tr><th>ID</th><th>Employee</th><th>Dept / Position</th><th>Reason</th><th>Remarks</th><th>Submitted</th><th></th></tr>
       </thead>
-      <tbody id="rows"><tr><td colspan="8">Loading...</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="7">Loading...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -23,6 +23,10 @@
 <div class="modal-bg" id="modalBg">
   <div class="modal">
     <h2 id="modalTitle">Decision</h2>
+    <div id="salaryFieldWrap" style="display:none">
+      <label>Salary Amount (to print on the certificate)</label>
+      <input type="number" id="salaryInput" step="0.01" min="0" placeholder="e.g. 45000.00">
+    </div>
     <label>Comment (optional, required if rejecting)</label>
     <textarea id="comment"></textarea>
     <div class="flex-row" style="margin-top:14px">
@@ -37,13 +41,18 @@
 <script src="js/common.js"></script>
 <script>
 let currentId = null;
+let currentIncludesSalary = false;
+let currentUser = null;
 
 (async () => {
   const user = await requireSession();
   if (!user) return;
-  if (!['hr_director','admin'].includes(user.role)) { window.location.href = 'dashboard.html'; return; }
+  if (!['hr_staff','hr_director'].includes(user.role)) { window.location.href = 'dashboard.html'; return; }
+  currentUser = user;
   renderTopbar(user);
   renderNav(user, 'approvals.html');
+  document.getElementById('queueTitle').textContent =
+    user.role === 'hr_director' ? 'Pending Salary Certificate Approvals' : 'Pending Certificate Approvals (No Salary)';
   await load();
 })();
 
@@ -52,7 +61,7 @@ async function load() {
     const { requests } = await api('GET', '/api/approvals/pending');
     const tbody = document.getElementById('rows');
     if (requests.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="8">No pending approvals.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7">No pending approvals.</td></tr>`;
       return;
     }
     tbody.innerHTML = requests.map(r => `
@@ -61,21 +70,23 @@ async function load() {
         <td>${r.employee_name}</td>
         <td>${r.department || ''} / ${r.position || ''}</td>
         <td>${r.reason}${r.reason === 'Other' ? ' — ' + (r.other_reason||'') : ''}</td>
-        <td>${r.salary_amount != null ? Number(r.salary_amount).toLocaleString() : ''}</td>
         <td>${r.remarks || ''}</td>
         <td>${new Date(r.created_date).toLocaleString()}</td>
-        <td><button class="btn small" onclick="openModal(${r.request_id})">Review</button></td>
+        <td><button class="btn small" onclick="openModal(${r.request_id}, ${r.include_salary})">Review</button></td>
       </tr>
     `).join('');
   } catch (e) {
-    document.getElementById('rows').innerHTML = `<tr><td colspan="8">Error: ${e.message}</td></tr>`;
+    document.getElementById('rows').innerHTML = `<tr><td colspan="7">Error: ${e.message}</td></tr>`;
   }
 }
 
-function openModal(id) {
+function openModal(id, includesSalary) {
   currentId = id;
+  currentIncludesSalary = !!includesSalary;
   document.getElementById('modalTitle').textContent = `Decision for Request #${id}`;
   document.getElementById('comment').value = '';
+  document.getElementById('salaryInput').value = '';
+  document.getElementById('salaryFieldWrap').style.display = currentIncludesSalary ? '' : 'none';
   document.getElementById('modalErr').textContent = '';
   document.getElementById('modalBg').classList.add('open');
 }
@@ -88,8 +99,17 @@ async function decide(decision) {
     errEl.textContent = 'A comment is required when rejecting.';
     return;
   }
+  const body = { decision, comment };
+  if (decision === 'Approved' && currentIncludesSalary) {
+    const salaryVal = document.getElementById('salaryInput').value;
+    if (!salaryVal || isNaN(parseFloat(salaryVal))) {
+      errEl.textContent = 'Please enter a valid salary amount.';
+      return;
+    }
+    body.salary_amount = parseFloat(salaryVal);
+  }
   try {
-    await api('POST', `/api/approvals/${currentId}/decision`, { decision, comment });
+    await api('POST', `/api/approvals/${currentId}/decision`, body);
     document.getElementById('modalBg').classList.remove('open');
     await load();
   } catch (e) {

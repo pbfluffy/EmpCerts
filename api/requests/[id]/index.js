@@ -4,6 +4,9 @@ const { requireAuth } = require('../../../lib/auth');
 async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   const u = req.user;
+  if (u.role === 'admin') {
+    return res.status(403).json({ error: 'Administrators manage users only and cannot view certificate requests' });
+  }
   const { id } = req.query;
 
   const row = await get(`

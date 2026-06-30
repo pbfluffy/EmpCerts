@@ -27,14 +27,9 @@
 
       <label>Include Salary Information?</label>
       <select id="include_salary" required>
-        <option value="0">No</option>
-        <option value="1">Yes (requires HR Director approval)</option>
+        <option value="0">No (reviewed by HR Staff)</option>
+        <option value="1">Yes (reviewed by HR Director, who confirms the salary figure)</option>
       </select>
-
-      <div id="salaryWrap" style="display:none">
-        <label>Salary Amount</label>
-        <input type="number" id="salary_amount" step="0.01" min="0" placeholder="e.g. 45000.00">
-      </div>
 
       <label>Language</label>
       <select id="language">
@@ -69,9 +64,6 @@
   document.getElementById('reason').addEventListener('change', e => {
     document.getElementById('otherReasonWrap').style.display = e.target.value === 'Other' ? '' : 'none';
   });
-  document.getElementById('include_salary').addEventListener('change', e => {
-    document.getElementById('salaryWrap').style.display = e.target.value === '1' ? '' : 'none';
-  });
 
   document.getElementById('reqForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -84,7 +76,6 @@
       reason: document.getElementById('reason').value,
       other_reason: document.getElementById('other_reason').value,
       include_salary,
-      salary_amount: include_salary ? parseFloat(document.getElementById('salary_amount').value) : null,
       language: document.getElementById('language').value,
       delivery_method: document.getElementById('delivery_method').value,
       remarks: document.getElementById('remarks').value
@@ -94,7 +85,6 @@
       okEl.textContent = `Request #${request.request_id} submitted. Status: ${request.status}.`;
       e.target.reset();
       document.getElementById('otherReasonWrap').style.display = 'none';
-      document.getElementById('salaryWrap').style.display = 'none';
       setTimeout(() => window.location.href = 'dashboard.html', 1200);
     } catch (err) {
       errEl.textContent = err.message;

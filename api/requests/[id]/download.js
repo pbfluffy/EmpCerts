@@ -5,6 +5,9 @@ const { generateCertificateBuffer } = require('../../../lib/pdf');
 async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
   const u = req.user;
+  if (u.role === 'admin') {
+    return res.status(403).json({ error: 'Administrators manage users only and cannot download certificates' });
+  }
   const { id } = req.query;
 
   const request = await get('SELECT * FROM certificate_requests WHERE request_id = ?', [id]);
