@@ -11,6 +11,21 @@
   <div class="nav-tabs" id="nav"></div>
 
   <div class="card">
+    <h2>Bulk Import Users (CSV)</h2>
+    <p class="hint">
+      CSV columns: <code>username,password,full_name,department,position,email,role</code><br>
+      <code>role</code> must be one of: employee, hr_staff, hr_director, admin (defaults to employee if blank).<br>
+      <code>department</code> and <code>position</code> are optional.
+    </p>
+    <a href="#" id="downloadTemplate" class="hint" style="display:inline-block;margin-bottom:10px">Download CSV template</a>
+    <input type="file" id="csvFile" accept=".csv">
+    <button class="btn" id="importBtn" type="button">Import Users</button>
+    <div class="error" id="importErr"></div>
+    <div class="success-msg" id="importOk"></div>
+    <div id="importDetails" style="margin-top:10px;font-size:13px"></div>
+  </div>
+
+  <div class="card">
     <h2>Create User</h2>
     <form id="createForm">
       <div class="flex-row">
@@ -90,6 +105,57 @@ async function toggleStatus(id, currentStatus) {
   await api('PUT', `/api/admin/users/${id}`, { status });
   await loadUsers();
 }
+
+document.getElementById('downloadTemplate').addEventListener('click', (e) => {
+  e.preventDefault();
+  const csv = 'username,password,full_name,department,position,email,role\n' +
+              'jdoe,TempPass123,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'user_import_template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', async () => {
+  const fileInput = document.getElementById('csvFile');
+  const errEl = document.getElementById('importErr');
+  const okEl = document.getElementById('importOk');
+  const detailsEl = document.getElementById('importDetails');
+  errEl.textContent = ''; okEl.textContent = ''; detailsEl.innerHTML = '';
+
+  const file = fileInput.files[0];
+  if (!file) {
+    errEl.textContent = 'Please choose a CSV file first.';
+    return;
+  }
+
+  try {
+    const csvText = await file.text();
+    const result = await api('POST', '/api/admin/users/bulk-import', { csv: csvText });
+    okEl.textContent = `Import complete: ${result.created.length} user(s) created, ${result.skipped.length} skipped.`;
+
+    let html = '';
+    if (result.created.length > 0) {
+      html += '<strong>Created:</strong><ul>' +
+        result.created.map(c => `<li>Row ${c.row}: ${c.username} (${c.role})</li>`).join('') +
+        '</ul>';
+    }
+    if (result.skipped.length > 0) {
+      html += '<strong style="color:var(--danger)">Skipped:</strong><ul>' +
+        result.skipped.map(s => `<li>Row ${s.row}${s.username ? ' (' + s.username + ')' : ''}: ${s.reason}</li>`).join('') +
+        '</ul>';
+    }
+    detailsEl.innerHTML = html;
+
+    fileInput.value = '';
+    await loadUsers();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
 
 document.getElementById('createForm').addEventListener('submit', async (e) => {
   e.preventDefault();
