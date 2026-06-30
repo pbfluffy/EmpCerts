@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Sign Up — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="card login-card" style="width:420px">
+    <h1>Request an Account</h1>
+    <p class="hint" style="text-align:center;margin-bottom:14px">
+      Your request will be reviewed by an administrator before your account is activated.
+    </p>
+    <form id="signupForm">
+      <label>Full Name</label>
+      <input type="text" id="full_name" required>
+      <label>Username</label>
+      <input type="text" id="username" required>
+      <label>Password</label>
+      <input type="password" id="password" required minlength="6">
+      <div class="hint">At least 6 characters.</div>
+      <label>Email</label>
+      <input type="email" id="email" required>
+      <label>Department</label>
+      <input type="text" id="department">
+      <label>Position</label>
+      <input type="text" id="position">
+      <button class="btn" style="width:100%" type="submit">Submit Request</button>
+      <div class="error" id="err"></div>
+      <div class="success-msg" id="ok"></div>
+    </form>
+    <p class="hint" style="text-align:center;margin-top:14px">
+      Already have an account? <a href="index.html">Log in</a>
+    </p>
+  </div>
+</div>
+<script>
+document.getElementById('signupForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('err');
+  const okEl = document.getElementById('ok');
+  errEl.textContent = ''; okEl.textContent = '';
+  try {
+    const res = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        full_name: document.getElementById('full_name').value,
+        username: document.getElementById('username').value,
+        password: document.getElementById('password').value,
+        email: document.getElementById('email').value,
+        department: document.getElementById('department').value,
+        position: document.getElementById('position').value
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Signup failed');
+    okEl.textContent = data.message || 'Request submitted. Awaiting admin approval.';
+    e.target.reset();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+</script>
+</body>
+</html>

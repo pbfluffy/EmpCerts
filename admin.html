@@ -12,6 +12,7 @@
 
   <div class="nav-tabs" style="margin-bottom:14px">
     <a href="#" id="tabUsersBtn" class="active" onclick="showTab('users');return false;">Users</a>
+    <a href="#" id="tabSignupsBtn" onclick="showTab('signups');return false;">Signup Requests <span id="signupBadge"></span></a>
     <a href="#" id="tabRolesBtn" onclick="showTab('roles');return false;">Roles</a>
   </div>
 
@@ -69,6 +70,17 @@
     </details>
   </div>
 
+  <div id="signupsTab" style="display:none">
+    <div class="card">
+      <h2>Pending Signup Requests</h2>
+      <p class="hint">People who used "Request an account" on the login page show up here until approved or rejected.</p>
+      <table>
+        <thead><tr><th>Username</th><th>Name</th><th>Dept / Position</th><th>Email</th><th>Submitted</th><th></th></tr></thead>
+        <tbody id="signupRows"><tr><td colspan="6">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <div id="rolesTab" style="display:none">
     <div class="card">
       <h2>Roles &amp; What They Can Do</h2>
@@ -76,9 +88,9 @@
         <thead><tr><th>Role</th><th>Permissions</th></tr></thead>
         <tbody>
           <tr><td><strong>Employee</strong></td><td>Submit certificate requests; view and download only their own certificates</td></tr>
-          <tr><td><strong>HR Staff</strong></td><td>Approve or reject non-salary certificate requests; view all employees' requests</td></tr>
-          <tr><td><strong>HR Director</strong></td><td>Approve or reject salary certificate requests, entering the official salary figure at approval time; view all employees' requests</td></tr>
-          <tr><td><strong>System Administrator</strong></td><td>User and role management only — create/edit/delete users, assign roles, enable/disable accounts. No access to certificate requests or approvals.</td></tr>
+          <tr><td><strong>HR Staff</strong></td><td>Approve or reject non-salary certificate requests; view all employees' requests (read-only)</td></tr>
+          <tr><td><strong>HR Director</strong></td><td>Approve or reject salary certificate requests, entering the official salary figure at approval time; view all employees' requests (read-only)</td></tr>
+          <tr><td><strong>System Administrator</strong></td><td>User and role management only — create/edit/delete users, assign roles, enable/disable accounts, review signup requests. No access to certificate requests or approvals.</td></tr>
         </tbody>
       </table>
     </div>
@@ -86,8 +98,32 @@
 
 </div>
 
+<div class="modal-bg" id="signupModalBg">
+  <div class="modal">
+    <h2>Review Signup Request</h2>
+    <div id="signupModalInfo" style="font-size:13px;margin-bottom:10px"></div>
+    <label>Assign Role</label>
+    <select id="signupRole">
+      <option value="employee">Employee</option>
+      <option value="hr_staff">HR Staff</option>
+      <option value="hr_director">HR Director</option>
+      <option value="admin">System Administrator</option>
+    </select>
+    <label>Comment (required if rejecting)</label>
+    <textarea id="signupComment"></textarea>
+    <div class="flex-row" style="margin-top:14px">
+      <button class="btn" id="approveSignupBtn">Approve</button>
+      <button class="btn danger" id="rejectSignupBtn">Reject</button>
+      <button class="btn secondary" id="cancelSignupBtn">Cancel</button>
+    </div>
+    <div class="error" id="signupModalErr"></div>
+  </div>
+</div>
+
 <script src="js/common.js"></script>
 <script>
+let currentSignupId = null;
+
 (async () => {
   const user = await requireSession();
   if (!user) return;
@@ -95,12 +131,15 @@
   renderTopbar(user);
   renderNav(user, 'admin.html');
   await loadUsers();
+  await loadSignups();
 })();
 
 function showTab(tab) {
   document.getElementById('usersTab').style.display = tab === 'users' ? '' : 'none';
+  document.getElementById('signupsTab').style.display = tab === 'signups' ? '' : 'none';
   document.getElementById('rolesTab').style.display = tab === 'roles' ? '' : 'none';
   document.getElementById('tabUsersBtn').classList.toggle('active', tab === 'users');
+  document.getElementById('tabSignupsBtn').classList.toggle('active', tab === 'signups');
   document.getElementById('tabRolesBtn').classList.toggle('active', tab === 'roles');
 }
 
@@ -136,6 +175,59 @@ async function deleteUser(id, username) {
     alert(err.message);
   }
 }
+
+async function loadSignups() {
+  const { signups } = await api('GET', '/api/admin/signups');
+  const badge = document.getElementById('signupBadge');
+  badge.textContent = signups.length > 0 ? `(${signups.length})` : '';
+  const tbody = document.getElementById('signupRows');
+  if (signups.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6">No pending signup requests.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = signups.map(s => `
+    <tr>
+      <td>${s.username}</td>
+      <td>${s.full_name}</td>
+      <td>${s.department || ''} / ${s.position || ''}</td>
+      <td>${s.email}</td>
+      <td>${new Date(s.created_date).toLocaleString()}</td>
+      <td><button class="btn small" onclick='openSignupModal(${JSON.stringify(s)})'>Review</button></td>
+    </tr>
+  `).join('');
+}
+
+function openSignupModal(signup) {
+  currentSignupId = signup.signup_id;
+  document.getElementById('signupModalInfo').innerHTML =
+    `<strong>${signup.full_name}</strong> (${signup.username})<br>${signup.email}<br>${signup.department || ''} ${signup.position || ''}`;
+  document.getElementById('signupRole').value = 'employee';
+  document.getElementById('signupComment').value = '';
+  document.getElementById('signupModalErr').textContent = '';
+  document.getElementById('signupModalBg').classList.add('open');
+}
+document.getElementById('cancelSignupBtn').onclick = () => document.getElementById('signupModalBg').classList.remove('open');
+
+async function decideSignup(decision) {
+  const errEl = document.getElementById('signupModalErr');
+  const comment = document.getElementById('signupComment').value;
+  if (decision === 'Rejected' && !comment.trim()) {
+    errEl.textContent = 'A comment is required when rejecting.';
+    return;
+  }
+  try {
+    await api('POST', `/api/admin/signups/${currentSignupId}/decision`, {
+      decision, comment, role: document.getElementById('signupRole').value
+    });
+    document.getElementById('signupModalBg').classList.remove('open');
+    await loadSignups();
+    await loadUsers();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+}
+document.getElementById('approveSignupBtn').onclick = () => decideSignup('Approved');
+document.getElementById('rejectSignupBtn').onclick = () => decideSignup('Rejected');
 
 document.getElementById('downloadTemplate').addEventListener('click', (e) => {
   e.preventDefault();

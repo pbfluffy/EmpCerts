@@ -27,8 +27,12 @@ async function handler(req, res) {
 
   await audit(u.employee_id, 'DOWNLOAD_PDF', 'certificate_request', request.request_id, null);
 
+  const safeName = (employee.full_name || 'Employee').trim().replace(/[^a-zA-Z0-9]+/g, '_');
+  const salaryTag = request.include_salary ? 'withSalary' : 'withoutSalary';
+  const filename = `${employee.employee_id}_${safeName}_${salaryTag}.pdf`;
+
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="certificate_${request.request_id}.pdf"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
   res.status(200).send(buffer);
 }
 
