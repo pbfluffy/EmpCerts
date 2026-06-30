@@ -8,7 +8,16 @@ module.exports = async (req, res) => {
   if (!username || !password) {
     return res.status(400).json({ error: 'Username and password are required' });
   }
-  const user = await get('SELECT * FROM employees WHERE username = ?', [username]);
+
+  // Accept username, Employee ID, or email as the login identifier
+  // (the login screen advertises all three, so the backend needs to match).
+  const identifier = String(username).trim();
+  const isNumericId = /^\d+$/.test(identifier);
+
+  const user = isNumericId
+    ? await get('SELECT * FROM employees WHERE employee_id = ? OR username = ?', [Number(identifier), identifier])
+    : await get('SELECT * FROM employees WHERE username = ? OR email = ?', [identifier, identifier]);
+
   if (!user || user.status !== 'active') {
     return res.status(401).json({ error: 'Invalid credentials' });
   }

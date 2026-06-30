@@ -7,6 +7,10 @@ const REQUIRED_HEADERS = ['employee_id', 'username', 'password', 'full_name', 'e
 
 // Minimal CSV parser: handles quoted fields containing commas, and trims whitespace.
 function parseCSV(text) {
+  // Strip a UTF-8 BOM if present (Excel commonly adds one when saving CSV files,
+  // which otherwise makes the first header silently fail to match, e.g. "\uFEFFemployee_id").
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
   const lines = text.split(/\r\n|\n|\r/).filter(l => l.trim().length > 0);
   if (lines.length === 0) return { headers: [], rows: [] };
 
