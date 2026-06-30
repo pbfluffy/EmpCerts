@@ -50,6 +50,7 @@ function renderNav(user, active) {
   tabs.push({ href: 'all-requests.html', label: 'All Requests', roles: ['hr_staff','hr_director'] });
   tabs.push({ href: 'approvals.html', label: 'Approvals', roles: ['hr_staff','hr_director'] });
   tabs.push({ href: 'admin.html', label: 'Admin', roles: ['admin'] });
+  tabs.push({ href: 'profile.html', label: 'My Profile', roles: ['employee','hr_staff','hr_director','admin'] });
 
   el.innerHTML = tabs
     .filter(t => t.roles.includes(user.role))

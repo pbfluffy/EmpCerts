@@ -23,7 +23,10 @@ async function handler(req, res) {
     }
 
     const employee = await get('SELECT * FROM employees WHERE employee_id = ?', [request.employee_id]);
-    const buffer = await generateCertificateBuffer({ request, employee });
+    const approver = request.approver_id
+      ? await get('SELECT employee_id, full_name, role, signature FROM employees WHERE employee_id = ?', [request.approver_id])
+      : null;
+    const buffer = await generateCertificateBuffer({ request, employee, approver });
     await audit(u.employee_id, 'DOWNLOAD_PDF', 'certificate_request', request.request_id, null);
 
     const safeName = (employee.full_name || 'Employee').trim().replace(/[^a-zA-Z0-9]+/g, '_');

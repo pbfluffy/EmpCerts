@@ -78,5 +78,45 @@ module.exports = async (req, res) => {
     return res.status(201).json({ ok: true, message: 'Your request has been submitted and is pending administrator approval.' });
   }
 
+  if (action === 'change_password') {
+    const user = getUser(req);
+    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+    const { current_password, new_password } = body;
+    if (!current_password || !new_password) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+    if (String(new_password).length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    const dbUser = await get('SELECT * FROM employees WHERE employee_id = ?', [user.employee_id]);
+    if (!dbUser) return res.status(404).json({ error: 'Account not found' });
+    const ok = bcrypt.compareSync(current_password, dbUser.password_hash);
+    if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    const newHash = bcrypt.hashSync(new_password, 10);
+    await run('UPDATE employees SET password_hash = ? WHERE employee_id = ?', [newHash, user.employee_id]);
+    await audit(user.employee_id, 'CHANGE_PASSWORD', 'employee', user.employee_id, null);
+    return res.status(200).json({ ok: true });
+  }
+
+  if (action === 'upload_signature') {
+    const user = getUser(req);
+    if (!user) return res.status(401).json({ error: 'Not authenticated' });
+    if (!['hr_staff', 'hr_director'].includes(user.role)) {
+      return res.status(403).json({ error: 'Only HR Staff or HR Director can upload a signature' });
+    }
+    const { signature } = body;
+    if (!signature || typeof signature !== 'string' || !signature.startsWith('data:image/')) {
+      return res.status(400).json({ error: 'A valid image (PNG or JPG) is required' });
+    }
+    // Rough size guard — base64 inflates size ~33%, cap stored signatures around ~300KB raw.
+    if (signature.length > 400000) {
+      return res.status(400).json({ error: 'Signature image is too large — please use a smaller file (under ~250KB)' });
+    }
+    await run('UPDATE employees SET signature = ? WHERE employee_id = ?', [signature, user.employee_id]);
+    await audit(user.employee_id, 'UPLOAD_SIGNATURE', 'employee', user.employee_id, null);
+    return res.status(200).json({ ok: true });
+  }
+
   return res.status(400).json({ error: 'Unknown action' });
 };
