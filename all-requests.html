@@ -33,7 +33,7 @@
   renderNav(user, 'all-requests.html');
 
   try {
-    const { requests } = await api('GET', '/api/requests/all');
+    const { requests } = await api('GET', '/api/requests?scope=all');
     const tbody = document.getElementById('rows');
     if (requests.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7">No requests yet.</td></tr>`;

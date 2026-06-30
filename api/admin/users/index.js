@@ -3,11 +3,106 @@ const { run, get, all, audit } = require('../../../lib/db');
 const { requireRole, readBody } = require('../../../lib/auth');
 
 const ROLES = ['employee', 'hr_staff', 'hr_director', 'admin'];
+const REQUIRED_CSV_HEADERS = ['employee_id', 'username', 'password', 'full_name', 'email'];
+
+function parseCSV(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r\n|\n|\r/).filter(l => l.trim().length > 0);
+  if (lines.length === 0) return { headers: [], rows: [] };
+  const parseLine = (line) => {
+    const fields = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (inQuotes) {
+        if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+        else if (ch === '"') { inQuotes = false; }
+        else { cur += ch; }
+      } else {
+        if (ch === '"') inQuotes = true;
+        else if (ch === ',') { fields.push(cur); cur = ''; }
+        else cur += ch;
+      }
+    }
+    fields.push(cur);
+    return fields.map(f => f.trim());
+  };
+  const headers = parseLine(lines[0]).map(h => h.toLowerCase());
+  const rows = lines.slice(1).map(parseLine);
+  return { headers, rows };
+}
+
+async function handleBulkImport(u, csv, res) {
+  const { headers, rows } = parseCSV(csv);
+  const missing = REQUIRED_CSV_HEADERS.filter(h => !headers.includes(h));
+  if (missing.length > 0) {
+    return res.status(400).json({ error: `CSV is missing required column(s): ${missing.join(', ')}` });
+  }
+  const colIndex = {};
+  headers.forEach((h, i) => { colIndex[h] = i; });
+  const results = { created: [], skipped: [] };
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNum = i + 2;
+    const get_ = (col) => (colIndex[col] !== undefined ? (row[colIndex[col]] || '').trim() : '');
+
+    const employeeIdRaw = get_('employee_id');
+    const username = get_('username');
+    const password = get_('password');
+    const full_name = get_('full_name');
+    const email = get_('email');
+    const department = get_('department');
+    const position = get_('position');
+    let role = get_('role').toLowerCase() || 'employee';
+
+    if (!employeeIdRaw || !username || !password || !full_name || !email) {
+      results.skipped.push({ row: rowNum, reason: 'Missing required field(s) (Employee_ID, username, password, full_name, email)' });
+      continue;
+    }
+    const employeeId = Number(employeeIdRaw);
+    if (!Number.isInteger(employeeId) || employeeId <= 0) {
+      results.skipped.push({ row: rowNum, username, reason: `Invalid Employee_ID "${employeeIdRaw}" — must be a positive whole number` });
+      continue;
+    }
+    if (!ROLES.includes(role)) {
+      results.skipped.push({ row: rowNum, username, reason: `Invalid role "${role}" — must be one of ${ROLES.join(', ')}` });
+      continue;
+    }
+    const existingId = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [employeeId]);
+    if (existingId) {
+      results.skipped.push({ row: rowNum, username, reason: `Employee_ID ${employeeId} is already in use` });
+      continue;
+    }
+    const existingUsername = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
+    if (existingUsername) {
+      results.skipped.push({ row: rowNum, username, reason: 'Username already exists' });
+      continue;
+    }
+    const hash = bcrypt.hashSync(password, 10);
+    await run(`
+      INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role)
+      VALUES (?,?,?,?,?,?,?,?)
+    `, [employeeId, username, hash, full_name, department || null, position || null, email, role]);
+    results.created.push({ row: rowNum, employee_id: employeeId, username, role });
+  }
+
+  await audit(u.employee_id, 'BULK_IMPORT_USERS', 'employee', null, {
+    created_count: results.created.length, skipped_count: results.skipped.length
+  });
+  return res.status(200).json(results);
+}
 
 async function handler(req, res) {
   const u = req.user;
 
   if (req.method === 'GET') {
+    // ?audit=1 -> audit log instead of user list
+    if (req.query.audit === '1') {
+      const logs = await all('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 500');
+      return res.status(200).json({ logs });
+    }
     const rows = await all(`
       SELECT employee_id, username, full_name, department, position, email, role, status, created_date
       FROM employees ORDER BY created_date DESC
@@ -16,12 +111,19 @@ async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    let { username, password, full_name, department, position, email, role } = await readBody(req);
+    const body = await readBody(req);
+
+    // CSV bulk import path
+    if (typeof body.csv === 'string' && body.csv.trim()) {
+      return handleBulkImport(u, body.csv, res);
+    }
+
+    // Single user creation path
+    let { username, password, full_name, department, position, email, role } = body;
     if (!username || !password || !full_name || !email) {
       return res.status(400).json({ error: 'username, password, full_name, email are required' });
     }
     role = ROLES.includes(role) ? role : 'employee';
-
     const existing = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
     if (existing) return res.status(409).json({ error: 'Username already exists' });
 

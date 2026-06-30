@@ -1,4 +1,4 @@
-const { run, all, audit } = require('../../lib/db');
+const { run, get, all, audit } = require('../../lib/db');
 const { requireAuth, readBody } = require('../../lib/auth');
 const { notifyRequestSubmitted } = require('../../lib/mailer');
 
@@ -12,10 +12,21 @@ async function handler(req, res) {
     if (u.role === 'admin') {
       return res.status(403).json({ error: 'Administrators manage users only and cannot view certificate requests' });
     }
-    // "My Requests" always shows only the logged-in person's own requests —
-    // including for HR Staff/HR Director, who are also employees and can
-    // submit their own certificate requests. See /api/requests/all for the
-    // separate, read-only view of everyone else's requests.
+
+    // ?scope=all -> read-only view of everyone's requests (HR Staff/Director only)
+    if (req.query.scope === 'all') {
+      if (!['hr_staff', 'hr_director'].includes(u.role)) {
+        return res.status(403).json({ error: 'Forbidden: insufficient role' });
+      }
+      const rows = await all(`
+        SELECT r.*, e.full_name AS employee_name
+        FROM certificate_requests r JOIN employees e ON e.employee_id = r.employee_id
+        ORDER BY r.created_date DESC
+      `);
+      return res.status(200).json({ requests: rows });
+    }
+
+    // Default: "My Requests" — always the logged-in person's own, regardless of role.
     const rows = await all(`
       SELECT r.*, e.full_name AS employee_name
       FROM certificate_requests r JOIN employees e ON e.employee_id = r.employee_id
@@ -37,13 +48,6 @@ async function handler(req, res) {
     if (!DELIVERY_METHODS.includes(delivery_method)) return res.status(400).json({ error: 'Invalid delivery method' });
 
     include_salary = include_salary ? 1 : 0;
-    // Note: salary_amount is intentionally NOT accepted from the employee here.
-    // HR Director enters the actual figure when approving a salary certificate request.
-
-    // Every request requires approval:
-    //   - Include Salary = No  -> goes to HR Staff
-    //   - Include Salary = Yes -> goes to HR Director (who also fills in the salary amount)
-    const initialStatus = 'Pending Approval';
 
     const result = await run(`
       INSERT INTO certificate_requests
@@ -52,20 +56,17 @@ async function handler(req, res) {
     `, [
       u.employee_id, reason, reason === 'Other' ? other_reason : null,
       include_salary, null,
-      language || 'English', delivery_method, remarks || null, initialStatus
+      language || 'English', delivery_method, remarks || null, 'Pending Approval'
     ]);
 
     const requestId = Number(result.lastInsertRowid);
     await audit(u.employee_id, 'SUBMIT_REQUEST', 'certificate_request', requestId, { include_salary: !!include_salary });
 
-    const { get } = require('../../lib/db');
     const created = await get('SELECT * FROM certificate_requests WHERE request_id = ?', [requestId]);
 
-    // Notify the relevant HR queue by email (non-blocking — failures are logged, not thrown)
     const targetRole = include_salary ? 'hr_director' : 'hr_staff';
     const recipients = (await all('SELECT email FROM employees WHERE role = ? AND status = ?', [targetRole, 'active']))
-      .map(r => r.email)
-      .filter(Boolean);
+      .map(r => r.email).filter(Boolean);
     notifyRequestSubmitted({ recipients, request: created, employeeName: u.full_name }).catch(() => {});
 
     return res.status(201).json({ request: created });

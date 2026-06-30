@@ -46,7 +46,7 @@
         <td>${r.delivery_method}</td>
         <td>${badge(r.status)}</td>
         <td>${new Date(r.created_date).toLocaleString()}</td>
-        <td>${r.status === 'Completed' ? `<a class="btn small" href="/api/requests/${r.request_id}/download">Download</a>` : ''}</td>
+        <td>${r.status === 'Completed' ? `<a class="btn small" href="/api/requests/${r.request_id}?download=1">Download</a>` : ''}</td>
       </tr>
     `).join('');
   } catch (e) {

@@ -216,8 +216,8 @@ async function decideSignup(decision) {
     return;
   }
   try {
-    await api('POST', `/api/admin/signups/${currentSignupId}/decision`, {
-      decision, comment, role: document.getElementById('signupRole').value
+    await api('POST', '/api/admin/signups', {
+      signup_id: currentSignupId, decision, comment, role: document.getElementById('signupRole').value
     });
     document.getElementById('signupModalBg').classList.remove('open');
     await loadSignups();
@@ -257,7 +257,7 @@ document.getElementById('importBtn').addEventListener('click', async () => {
 
   try {
     const csvText = await file.text();
-    const result = await api('POST', '/api/admin/users/bulk-import', { csv: csvText });
+    const result = await api('POST', '/api/admin/users', { csv: csvText });
     okEl.textContent = `Import complete: ${result.created.length} user(s) created, ${result.skipped.length} skipped.`;
 
     let html = '';

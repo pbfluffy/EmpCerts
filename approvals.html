@@ -58,7 +58,7 @@ let currentUser = null;
 
 async function load() {
   try {
-    const { requests } = await api('GET', '/api/approvals/pending');
+    const { requests } = await api('GET', '/api/approvals');
     const tbody = document.getElementById('rows');
     if (requests.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7">No pending approvals.</td></tr>`;
@@ -99,7 +99,7 @@ async function decide(decision) {
     errEl.textContent = 'A comment is required when rejecting.';
     return;
   }
-  const body = { decision, comment };
+  const body = { request_id: currentId, decision, comment };
   if (decision === 'Approved' && currentIncludesSalary) {
     const salaryVal = document.getElementById('salaryInput').value;
     if (!salaryVal || isNaN(parseFloat(salaryVal))) {
@@ -109,7 +109,7 @@ async function decide(decision) {
     body.salary_amount = parseFloat(salaryVal);
   }
   try {
-    await api('POST', `/api/approvals/${currentId}/decision`, body);
+    await api('POST', '/api/approvals', body);
     document.getElementById('modalBg').classList.remove('open');
     await load();
   } catch (e) {

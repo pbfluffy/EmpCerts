@@ -11,7 +11,7 @@ async function api(method, url, body) {
 
 async function requireSession() {
   try {
-    const { user } = await api('GET', '/api/auth/me');
+    const { user } = await api('GET', '/api/auth');
     return user;
   } catch (e) {
     window.location.href = '/index.html';
@@ -37,7 +37,7 @@ function renderTopbar(user) {
 }
 
 async function logout() {
-  await api('POST', '/api/auth/logout');
+  await api('POST', '/api/auth', { action: 'logout' });
   window.location.href = '/index.html';
 }
 

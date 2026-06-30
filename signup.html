@@ -42,10 +42,11 @@ document.getElementById('signupForm').addEventListener('submit', async (e) => {
   const okEl = document.getElementById('ok');
   errEl.textContent = ''; okEl.textContent = '';
   try {
-    const res = await fetch('/api/auth/signup', {
+    const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        action: 'signup',
         full_name: document.getElementById('full_name').value,
         username: document.getElementById('username').value,
         password: document.getElementById('password').value,
