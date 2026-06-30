@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Login — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="card login-card">
+    <h1>Employee Certificate System</h1>
+    <form id="loginForm">
+      <label>Username (Employee ID or Email)</label>
+      <input type="text" id="username" required autocomplete="username">
+      <label>Password</label>
+      <input type="password" id="password" required autocomplete="current-password">
+      <button class="btn" style="width:100%" type="submit">Log In</button>
+      <div class="error" id="err"></div>
+    </form>
+    <div class="demo-accounts">
+      <strong>Demo accounts</strong> (run <code>npm run seed</code> first):<br>
+      admin / Admin@123 — System Administrator<br>
+      hrdirector / HrDir@123 — HR Director<br>
+      hrstaff / HrStaff@123 — HR Staff<br>
+      employee1 / Employee@123 — Employee
+    </div>
+  </div>
+</div>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const errEl = document.getElementById('err');
+  errEl.textContent = '';
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    window.location.href = 'dashboard.html';
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+</script>
+</body>
+</html>

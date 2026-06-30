@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Approvals — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="container">
+  <div class="nav-tabs" id="nav"></div>
+  <div class="card">
+    <h2>Pending Salary Certificate Approvals</h2>
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Employee</th><th>Dept / Position</th><th>Reason</th><th>Salary</th><th>Remarks</th><th>Submitted</th><th></th></tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="8">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h2 id="modalTitle">Decision</h2>
+    <label>Comment (optional, required if rejecting)</label>
+    <textarea id="comment"></textarea>
+    <div class="flex-row" style="margin-top:14px">
+      <button class="btn" id="approveBtn">Approve</button>
+      <button class="btn danger" id="rejectBtn">Reject</button>
+      <button class="btn secondary" id="cancelBtn">Cancel</button>
+    </div>
+    <div class="error" id="modalErr"></div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+let currentId = null;
+
+(async () => {
+  const user = await requireSession();
+  if (!user) return;
+  if (!['hr_director','admin'].includes(user.role)) { window.location.href = 'dashboard.html'; return; }
+  renderTopbar(user);
+  renderNav(user, 'approvals.html');
+  await load();
+})();
+
+async function load() {
+  try {
+    const { requests } = await api('GET', '/api/approvals/pending');
+    const tbody = document.getElementById('rows');
+    if (requests.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8">No pending approvals.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = requests.map(r => `
+      <tr>
+        <td>#${r.request_id}</td>
+        <td>${r.employee_name}</td>
+        <td>${r.department || ''} / ${r.position || ''}</td>
+        <td>${r.reason}${r.reason === 'Other' ? ' — ' + (r.other_reason||'') : ''}</td>
+        <td>${r.salary_amount != null ? Number(r.salary_amount).toLocaleString() : ''}</td>
+        <td>${r.remarks || ''}</td>
+        <td>${new Date(r.created_date).toLocaleString()}</td>
+        <td><button class="btn small" onclick="openModal(${r.request_id})">Review</button></td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    document.getElementById('rows').innerHTML = `<tr><td colspan="8">Error: ${e.message}</td></tr>`;
+  }
+}
+
+function openModal(id) {
+  currentId = id;
+  document.getElementById('modalTitle').textContent = `Decision for Request #${id}`;
+  document.getElementById('comment').value = '';
+  document.getElementById('modalErr').textContent = '';
+  document.getElementById('modalBg').classList.add('open');
+}
+document.getElementById('cancelBtn').onclick = () => document.getElementById('modalBg').classList.remove('open');
+
+async function decide(decision) {
+  const comment = document.getElementById('comment').value;
+  const errEl = document.getElementById('modalErr');
+  if (decision === 'Rejected' && !comment.trim()) {
+    errEl.textContent = 'A comment is required when rejecting.';
+    return;
+  }
+  try {
+    await api('POST', `/api/approvals/${currentId}/decision`, { decision, comment });
+    document.getElementById('modalBg').classList.remove('open');
+    await load();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+document.getElementById('approveBtn').onclick = () => decide('Approved');
+document.getElementById('rejectBtn').onclick = () => decide('Rejected');
+</script>
+</body>
+</html>

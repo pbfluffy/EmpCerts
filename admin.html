@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Admin — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="container">
+  <div class="nav-tabs" id="nav"></div>
+
+  <div class="card">
+    <h2>Create User</h2>
+    <form id="createForm">
+      <div class="flex-row">
+        <div style="flex:1"><label>Username</label><input id="c_username" required></div>
+        <div style="flex:1"><label>Temp Password</label><input id="c_password" required></div>
+      </div>
+      <label>Full Name</label><input id="c_full_name" required>
+      <div class="flex-row">
+        <div style="flex:1"><label>Department</label><input id="c_department"></div>
+        <div style="flex:1"><label>Position</label><input id="c_position"></div>
+      </div>
+      <label>Email</label><input id="c_email" type="email" required>
+      <label>Role</label>
+      <select id="c_role">
+        <option value="employee">Employee</option>
+        <option value="hr_staff">HR Staff</option>
+        <option value="hr_director">HR Director</option>
+        <option value="admin">System Administrator</option>
+      </select>
+      <button class="btn" type="submit">Create User</button>
+      <div class="error" id="createErr"></div>
+      <div class="success-msg" id="createOk"></div>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>Users</h2>
+    <table>
+      <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th>Status</th><th></th></tr></thead>
+      <tbody id="userRows"><tr><td colspan="7">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script src="js/common.js"></script>
+<script>
+(async () => {
+  const user = await requireSession();
+  if (!user) return;
+  if (user.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+  renderTopbar(user);
+  renderNav(user, 'admin.html');
+  await loadUsers();
+})();
+
+async function loadUsers() {
+  const { users } = await api('GET', '/api/admin/users');
+  document.getElementById('userRows').innerHTML = users.map(u => `
+    <tr>
+      <td>${u.employee_id}</td><td>${u.username}</td><td>${u.full_name}</td>
+      <td>${u.department || ''}</td><td>${u.role}</td>
+      <td>${u.status}</td>
+      <td><button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
+        ${u.status === 'active' ? 'Disable' : 'Enable'}
+      </button></td>
+    </tr>
+  `).join('');
+}
+
+async function toggleStatus(id, currentStatus) {
+  const status = currentStatus === 'active' ? 'disabled' : 'active';
+  await api('PUT', `/api/admin/users/${id}`, { status });
+  await loadUsers();
+}
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('createErr');
+  const okEl = document.getElementById('createOk');
+  errEl.textContent = ''; okEl.textContent = '';
+  try {
+    await api('POST', '/api/admin/users', {
+      username: document.getElementById('c_username').value,
+      password: document.getElementById('c_password').value,
+      full_name: document.getElementById('c_full_name').value,
+      department: document.getElementById('c_department').value,
+      position: document.getElementById('c_position').value,
+      email: document.getElementById('c_email').value,
+      role: document.getElementById('c_role').value
+    });
+    okEl.textContent = 'User created.';
+    e.target.reset();
+    await loadUsers();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>My Requests — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="container">
+  <div class="nav-tabs" id="nav"></div>
+  <div class="card">
+    <h2 id="listTitle">Certificate Requests</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th id="empCol" style="display:none">Employee</th><th>Reason</th><th>Salary</th>
+          <th>Delivery</th><th>Status</th><th>Created</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="8">Loading...</td></tr></tbody>
+    </table>
+  </div>
+</div>
+<script src="js/common.js"></script>
+<script>
+(async () => {
+  const user = await requireSession();
+  if (!user) return;
+  renderTopbar(user);
+  renderNav(user, 'dashboard.html');
+
+  if (user.role !== 'employee') {
+    document.getElementById('listTitle').textContent = 'All Certificate Requests';
+    document.getElementById('empCol').style.display = '';
+  }
+
+  try {
+    const { requests } = await api('GET', '/api/requests');
+    const tbody = document.getElementById('rows');
+    if (requests.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="8">No requests yet.</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = requests.map(r => `
+      <tr>
+        <td>#${r.request_id}</td>
+        <td style="${user.role === 'employee' ? 'display:none' : ''}">${r.employee_name}</td>
+        <td>${r.reason}${r.reason === 'Other' ? ' — ' + (r.other_reason||'') : ''}</td>
+        <td>${r.include_salary ? 'Yes' : 'No'}</td>
+        <td>${r.delivery_method}</td>
+        <td>${badge(r.status)}</td>
+        <td>${new Date(r.created_date).toLocaleString()}</td>
+        <td>${r.status === 'Completed' ? `<a class="btn small" href="/api/requests/${r.request_id}/download">Download</a>` : ''}</td>
+      </tr>
+    `).join('');
+  } catch (e) {
+    document.getElementById('rows').innerHTML = `<tr><td colspan="8">Error: ${e.message}</td></tr>`;
+  }
+})();
+</script>
+</body>
+</html>
