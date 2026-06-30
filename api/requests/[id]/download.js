@@ -12,8 +12,11 @@ async function handler(req, res) {
 
   const request = await get('SELECT * FROM certificate_requests WHERE request_id = ?', [id]);
   if (!request) return res.status(404).json({ error: 'Not found' });
-  if (u.role === 'employee' && request.employee_id !== u.employee_id) {
-    return res.status(403).json({ error: 'Forbidden' });
+  // Only the certificate's own owner can download it — HR Staff/Director can
+  // VIEW other employees' request status (see /api/requests/all) but cannot
+  // download certificates that aren't theirs.
+  if (request.employee_id !== u.employee_id) {
+    return res.status(403).json({ error: 'Forbidden: you can only download your own certificates' });
   }
   if (request.status !== 'Completed' || !request.pdf_ready) {
     return res.status(400).json({ error: 'Certificate not yet generated' });

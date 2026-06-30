@@ -12,20 +12,15 @@ async function handler(req, res) {
     if (u.role === 'admin') {
       return res.status(403).json({ error: 'Administrators manage users only and cannot view certificate requests' });
     }
-    let rows;
-    if (u.role === 'employee') {
-      rows = await all(`
-        SELECT r.*, e.full_name AS employee_name
-        FROM certificate_requests r JOIN employees e ON e.employee_id = r.employee_id
-        WHERE r.employee_id = ? ORDER BY r.created_date DESC
-      `, [u.employee_id]);
-    } else {
-      rows = await all(`
-        SELECT r.*, e.full_name AS employee_name
-        FROM certificate_requests r JOIN employees e ON e.employee_id = r.employee_id
-        ORDER BY r.created_date DESC
-      `);
-    }
+    // "My Requests" always shows only the logged-in person's own requests —
+    // including for HR Staff/HR Director, who are also employees and can
+    // submit their own certificate requests. See /api/requests/all for the
+    // separate, read-only view of everyone else's requests.
+    const rows = await all(`
+      SELECT r.*, e.full_name AS employee_name
+      FROM certificate_requests r JOIN employees e ON e.employee_id = r.employee_id
+      WHERE r.employee_id = ? ORDER BY r.created_date DESC
+    `, [u.employee_id]);
     return res.status(200).json({ requests: rows });
   }
 

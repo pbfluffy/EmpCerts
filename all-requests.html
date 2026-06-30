@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>My Requests — Employee Certificate System</title>
+<title>All Requests — Employee Certificate System</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -10,12 +10,13 @@
 <div class="container">
   <div class="nav-tabs" id="nav"></div>
   <div class="card">
-    <h2>My Certificate Requests</h2>
+    <h2>All Employee Certificate Requests</h2>
+    <p class="hint">Read-only — you can view status here, but can only download your own certificates from "My Requests."</p>
     <table>
       <thead>
         <tr>
-          <th>ID</th><th>Reason</th><th>Salary</th>
-          <th>Delivery</th><th>Status</th><th>Created</th><th></th>
+          <th>ID</th><th>Employee</th><th>Reason</th><th>Salary</th>
+          <th>Delivery</th><th>Status</th><th>Created</th>
         </tr>
       </thead>
       <tbody id="rows"><tr><td colspan="7">Loading...</td></tr></tbody>
@@ -27,26 +28,26 @@
 (async () => {
   const user = await requireSession();
   if (!user) return;
-  if (user.role === 'admin') { window.location.href = 'admin.html'; return; }
+  if (!['hr_staff','hr_director'].includes(user.role)) { window.location.href = 'dashboard.html'; return; }
   renderTopbar(user);
-  renderNav(user, 'dashboard.html');
+  renderNav(user, 'all-requests.html');
 
   try {
-    const { requests } = await api('GET', '/api/requests');
+    const { requests } = await api('GET', '/api/requests/all');
     const tbody = document.getElementById('rows');
     if (requests.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">You haven't submitted any requests yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="7">No requests yet.</td></tr>`;
       return;
     }
     tbody.innerHTML = requests.map(r => `
       <tr>
         <td>#${r.request_id}</td>
+        <td>${r.employee_name}</td>
         <td>${r.reason}${r.reason === 'Other' ? ' — ' + (r.other_reason||'') : ''}</td>
         <td>${r.include_salary ? 'Yes' : 'No'}</td>
         <td>${r.delivery_method}</td>
         <td>${badge(r.status)}</td>
         <td>${new Date(r.created_date).toLocaleString()}</td>
-        <td>${r.status === 'Completed' ? `<a class="btn small" href="/api/requests/${r.request_id}/download">Download</a>` : ''}</td>
       </tr>
     `).join('');
   } catch (e) {
