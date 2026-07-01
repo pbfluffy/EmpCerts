@@ -48,6 +48,7 @@ function renderNav(user, active) {
   tabs.push({ href: 'dashboard.html', label: 'My Requests', roles: ['employee','hr_staff','hr_director'] });
   if (user.role === 'employee') tabs.push({ href: 'new-request.html', label: 'New Request', roles: ['employee'] });
   tabs.push({ href: 'all-requests.html', label: 'All Requests', roles: ['hr_staff','hr_director'] });
+  tabs.push({ href: 'hr-users.html', label: 'Users', roles: ['hr_staff','hr_director'] });
   tabs.push({ href: 'approvals.html', label: 'Approvals', roles: ['hr_staff','hr_director'] });
   tabs.push({ href: 'admin.html', label: 'Admin', roles: ['admin'] });
   tabs.push({ href: 'profile.html', label: 'My Profile', roles: ['employee','hr_staff','hr_director','admin'] });

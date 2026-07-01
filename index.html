@@ -38,7 +38,11 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');
-    window.location.href = 'dashboard.html';
+    if (data.user.must_change_password) {
+      window.location.href = 'change-password.html';
+    } else {
+      window.location.href = 'dashboard.html';
+    }
   } catch (err) {
     errEl.textContent = err.message;
   }

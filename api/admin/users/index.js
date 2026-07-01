@@ -1,9 +1,17 @@
+const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
 const { run, get, all, audit } = require('../../../lib/db');
 const { requireRole, readBody } = require('../../../lib/auth');
 
 const ROLES = ['employee', 'hr_staff', 'hr_director', 'admin'];
-const REQUIRED_CSV_HEADERS = ['employee_id', 'username', 'password', 'full_name', 'email'];
+// password column is now optional — auto-generated for new accounts
+const REQUIRED_CSV_HEADERS = ['employee_id', 'username', 'full_name', 'email'];
+
+function generateTempPassword() {
+  // 12-character alphanumeric temp password, easy to share
+  return crypto.randomBytes(9).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
+    + Math.floor(10 + Math.random() * 90); // always ends with 2 digits for complexity
+}
 
 function parseCSV(text) {
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
@@ -41,7 +49,7 @@ async function handleBulkImport(u, csv, res) {
   }
   const colIndex = {};
   headers.forEach((h, i) => { colIndex[h] = i; });
-  const results = { created: [], skipped: [] };
+  const results = { created: [], updated: [], skipped: [] };
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -57,8 +65,8 @@ async function handleBulkImport(u, csv, res) {
     const position = get_('position');
     let role = get_('role').toLowerCase() || 'employee';
 
-    if (!employeeIdRaw || !username || !password || !full_name || !email) {
-      results.skipped.push({ row: rowNum, reason: 'Missing required field(s) (Employee_ID, username, password, full_name, email)' });
+    if (!employeeIdRaw || !username || !full_name || !email) {
+      results.skipped.push({ row: rowNum, reason: 'Missing required field(s) (Employee_ID, username, full_name, email)' });
       continue;
     }
     const employeeId = Number(employeeIdRaw);
@@ -70,26 +78,39 @@ async function handleBulkImport(u, csv, res) {
       results.skipped.push({ row: rowNum, username, reason: `Invalid role "${role}" — must be one of ${ROLES.join(', ')}` });
       continue;
     }
-    const existingId = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [employeeId]);
-    if (existingId) {
-      results.skipped.push({ row: rowNum, username, reason: `Employee_ID ${employeeId} is already in use` });
-      continue;
+
+    const existingById = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [employeeId]);
+    if (existingById) {
+      // UPDATE existing user — password column is ignored entirely on updates
+      const fields = ['username = ?', 'full_name = ?', 'email = ?', 'role = ?'];
+      const values = [username, full_name, email, role];
+      if (department !== undefined) { fields.push('department = ?'); values.push(department || null); }
+      if (position !== undefined) { fields.push('position = ?'); values.push(position || null); }
+      values.push(employeeId);
+      await run(`UPDATE employees SET ${fields.join(', ')} WHERE employee_id = ?`, values);
+      results.updated.push({ row: rowNum, employee_id: employeeId, username, role });
+    } else {
+      // CREATE new user — auto-generate a temp password, flag for reset on first login
+      const existingByUsername = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
+      if (existingByUsername) {
+        results.skipped.push({ row: rowNum, username, reason: `Username "${username}" is already used by Employee_ID ${existingByUsername.employee_id}` });
+        continue;
+      }
+      const tempPassword = generateTempPassword();
+      const hash = bcrypt.hashSync(tempPassword, 10);
+      await run(`
+        INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, must_change_password)
+        VALUES (?,?,?,?,?,?,?,?,1)
+      `, [employeeId, username, hash, full_name, department || null, position || null, email, role]);
+      // Return temp password in results so admin can distribute it
+      results.created.push({ row: rowNum, employee_id: employeeId, username, role, temp_password: tempPassword });
     }
-    const existingUsername = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
-    if (existingUsername) {
-      results.skipped.push({ row: rowNum, username, reason: 'Username already exists' });
-      continue;
-    }
-    const hash = bcrypt.hashSync(password, 10);
-    await run(`
-      INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role)
-      VALUES (?,?,?,?,?,?,?,?)
-    `, [employeeId, username, hash, full_name, department || null, position || null, email, role]);
-    results.created.push({ row: rowNum, employee_id: employeeId, username, role });
   }
 
   await audit(u.employee_id, 'BULK_IMPORT_USERS', 'employee', null, {
-    created_count: results.created.length, skipped_count: results.skipped.length
+    created_count: results.created.length,
+    updated_count: results.updated.length,
+    skipped_count: results.skipped.length
   });
   return res.status(200).json(results);
 }

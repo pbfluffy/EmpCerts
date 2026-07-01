@@ -29,7 +29,8 @@ module.exports = async (req, res) => {
 
     const sessionUser = {
       employee_id: user.employee_id, username: user.username, full_name: user.full_name,
-      role: user.role, department: user.department, position: user.position, email: user.email
+      role: user.role, department: user.department, position: user.position, email: user.email,
+      must_change_password: user.must_change_password === 1 ? true : false
     };
     setAuthCookie(res, sessionUser);
     await audit(user.employee_id, 'LOGIN', 'employee', user.employee_id, null);
@@ -119,7 +120,7 @@ module.exports = async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
 
     const newHash = bcrypt.hashSync(new_password, 10);
-    await run('UPDATE employees SET password_hash = ? WHERE employee_id = ?', [newHash, user.employee_id]);
+    await run('UPDATE employees SET password_hash = ?, must_change_password = 0 WHERE employee_id = ?', [newHash, user.employee_id]);
     await audit(user.employee_id, 'CHANGE_PASSWORD', 'employee', user.employee_id, null);
     return res.status(200).json({ ok: true });
   }

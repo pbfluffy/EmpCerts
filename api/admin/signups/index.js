@@ -22,12 +22,11 @@ async function handler(req, res) {
       return res.status(400).json({ error: 'decision must be Approved or Rejected' });
     }
     if (decision === 'Approved') {
-      if (!full_name || !full_name.trim()) {
-        return res.status(400).json({ error: 'Full name is required when approving' });
-      }
-      if (!username || !username.trim()) {
-        return res.status(400).json({ error: 'Username is required when approving' });
-      }
+      if (!full_name || !full_name.trim()) return res.status(400).json({ error: 'Full name is required' });
+      if (!username || !username.trim()) return res.status(400).json({ error: 'Username is required' });
+      if (!department || !department.trim()) return res.status(400).json({ error: 'Department is required' });
+      if (!position || !position.trim()) return res.status(400).json({ error: 'Position is required' });
+      if (!role || !ROLES.includes(role)) return res.status(400).json({ error: 'A valid role is required' });
     }
 
     const signup = await get(`SELECT * FROM signup_requests WHERE signup_id = ?`, [signup_id]);

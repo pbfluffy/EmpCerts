@@ -50,14 +50,14 @@
 
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Active</h3>
       <div class="table-wrap"><table>
-        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th></th></tr></thead>
-        <tbody id="activeUserRows"><tr><td colspan="6">Loading...</td></tr></tbody>
+        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th></th></tr></thead>
+        <tbody id="activeUserRows"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table></div>
 
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin:20px 0 8px">Disabled</h3>
       <div class="table-wrap"><table>
-        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th></th></tr></thead>
-        <tbody id="disabledUserRows"><tr><td colspan="6">Loading...</td></tr></tbody>
+        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th></th></tr></thead>
+        <tbody id="disabledUserRows"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table></div>
     </div>
 
@@ -65,8 +65,9 @@
       <summary style="cursor:pointer;font-weight:600;font-size:14px">Bulk Import Users (CSV)</summary>
       <div style="margin-top:14px">
         <p class="hint">
-          CSV columns (in this order): <code>Employee_ID,username,password,full_name,department,position,email,role</code><br>
-          <code>Employee_ID</code> is required and must be a unique whole number — the user will be created with this exact ID in the system.<br>
+          CSV columns: <code>Employee_ID,username,full_name,department,position,email,role</code><br>
+          <strong>New users</strong>: a secure temporary password is auto-generated and shown after import. The user must set a new password on first login.<br>
+          <strong>Existing users</strong> (matched by Employee_ID): info is updated, password is never touched.<br>
           <code>role</code> must be one of: employee, hr_staff, hr_director, admin (defaults to employee if blank).<br>
           <code>department</code> and <code>position</code> are optional.
         </p>
@@ -113,15 +114,15 @@
     <h2>Review Signup Request</h2>
     <div id="signupModalInfo" style="font-size:13px;margin-bottom:14px;padding:10px;background:var(--bg);border-radius:6px"></div>
     <p class="hint" style="margin-bottom:12px">Fill in the employee details below before approving. These will be saved to their account.</p>
-    <label>Full Name</label>
+    <label>Full Name <span style="color:var(--danger)">*</span></label>
     <input type="text" id="signupFullName" required placeholder="Jane Doe">
-    <label>Username (for internal reference)</label>
+    <label>Username <span style="color:var(--danger)">*</span></label>
     <input type="text" id="signupUsername" required placeholder="jdoe">
     <div class="flex-row">
-      <div style="flex:1"><label>Department</label><input type="text" id="signupDepartment" placeholder="Engineering"></div>
-      <div style="flex:1"><label>Position</label><input type="text" id="signupPosition" placeholder="Developer"></div>
+      <div style="flex:1"><label>Department <span style="color:var(--danger)">*</span></label><input type="text" id="signupDepartment" required placeholder="Engineering"></div>
+      <div style="flex:1"><label>Position <span style="color:var(--danger)">*</span></label><input type="text" id="signupPosition" required placeholder="Developer"></div>
     </div>
-    <label>Assign Role</label>
+    <label>Assign Role <span style="color:var(--danger)">*</span></label>
     <select id="signupRole">
       <option value="employee">Employee</option>
       <option value="hr_staff">HR Staff</option>
@@ -178,7 +179,7 @@ function renderUserTables() {
   const rowHtml = (u) => `
     <tr>
       <td>${u.employee_id}</td><td>${u.username}</td><td>${u.full_name}</td>
-      <td>${u.department || ''}</td><td>${u.role}</td>
+      <td>${u.email || ''}</td><td>${u.department || ''}</td><td>${u.role}</td>
       <td>
         <button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
           ${u.status === 'active' ? 'Disable' : 'Enable'}
@@ -193,11 +194,11 @@ function renderUserTables() {
 
   document.getElementById('activeUserRows').innerHTML = active.length > 0
     ? active.map(rowHtml).join('')
-    : `<tr><td colspan="6">${query ? 'No matches.' : 'No active users.'}</td></tr>`;
+    : `<tr><td colspan="7">${query ? 'No matches.' : 'No active users.'}</td></tr>`;
 
   document.getElementById('disabledUserRows').innerHTML = disabled.length > 0
     ? disabled.map(rowHtml).join('')
-    : `<tr><td colspan="6">${query ? 'No matches.' : 'No disabled users.'}</td></tr>`;
+    : `<tr><td colspan="7">${query ? 'No matches.' : 'No disabled users.'}</td></tr>`;
 }
 
 document.getElementById('userSearch').addEventListener('input', renderUserTables);
@@ -259,8 +260,10 @@ async function decideSignup(decision) {
   if (decision === 'Approved') {
     const full_name = document.getElementById('signupFullName').value.trim();
     const username = document.getElementById('signupUsername').value.trim();
-    if (!full_name || !username) {
-      errEl.textContent = 'Full name and username are required before approving.';
+    const department = document.getElementById('signupDepartment').value.trim();
+    const position = document.getElementById('signupPosition').value.trim();
+    if (!full_name || !username || !department || !position) {
+      errEl.textContent = 'All fields (Full Name, Username, Department, Position) are required before approving.';
       return;
     }
   }
@@ -291,8 +294,8 @@ document.getElementById('rejectSignupBtn').onclick = () => decideSignup('Rejecte
 
 document.getElementById('downloadTemplate').addEventListener('click', (e) => {
   e.preventDefault();
-  const csv = 'Employee_ID,username,password,full_name,department,position,email,role\n' +
-              '1001,jdoe,TempPass123,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
+  const csv = 'Employee_ID,username,full_name,department,position,email,role\n' +
+              '1001,jdoe,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -318,12 +321,25 @@ document.getElementById('importBtn').addEventListener('click', async () => {
   try {
     const csvText = await file.text();
     const result = await api('POST', '/api/admin/users', { csv: csvText });
-    okEl.textContent = `Import complete: ${result.created.length} user(s) created, ${result.skipped.length} skipped.`;
+    okEl.textContent = `Import complete: ${result.created.length} created, ${result.updated.length} updated, ${result.skipped.length} skipped.`;
 
     let html = '';
     if (result.created.length > 0) {
-      html += '<strong>Created:</strong><ul>' +
-        result.created.map(c => `<li>Row ${c.row}: Employee_ID ${c.employee_id} — ${c.username} (${c.role})</li>`).join('') +
+      html += `<div style="margin-bottom:10px">
+        <strong>Created (${result.created.length}) — Temporary passwords below. Share with each employee:</strong>
+        <table style="margin-top:8px;font-size:12px">
+          <thead><tr><th>Emp ID</th><th>Username</th><th>Role</th><th style="color:var(--danger)">Temp Password</th></tr></thead>
+          <tbody>${result.created.map(c => `
+            <tr><td>${c.employee_id}</td><td>${c.username}</td><td>${c.role}</td>
+            <td style="font-family:monospace;color:var(--danger);font-weight:700">${c.temp_password}</td></tr>
+          `).join('')}</tbody>
+        </table>
+        <p class="hint" style="margin-top:6px">Each user will be prompted to set their own password on first login.</p>
+      </div>`;
+    }
+    if (result.updated.length > 0) {
+      html += '<strong>Updated:</strong><ul>' +
+        result.updated.map(c => `<li>Employee_ID ${c.employee_id} — ${c.username} (${c.role})</li>`).join('') +
         '</ul>';
     }
     if (result.skipped.length > 0) {
