@@ -31,8 +31,11 @@ async function handler(req, res) {
 
     // Default: "My Requests" — always the logged-in person's own, regardless of role.
     const rows = await all(`
-      SELECT r.*, e.full_name AS employee_name
-      FROM certificate_requests r JOIN employees e ON e.employee_id = r.employee_id
+      SELECT r.*, e.full_name AS employee_name,
+        a.full_name AS approver_name
+      FROM certificate_requests r
+      JOIN employees e ON e.employee_id = r.employee_id
+      LEFT JOIN employees a ON a.employee_id = r.approver_id
       WHERE r.employee_id = ? ORDER BY r.created_date DESC
     `, [u.employee_id]);
     return res.status(200).json({ requests: rows });
