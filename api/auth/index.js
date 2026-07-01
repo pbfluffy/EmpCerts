@@ -86,13 +86,13 @@ module.exports = async (req, res) => {
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    // 'username' and 'full_name' are placeholders here (those columns are
-    // required NOT NULL on this table) — the admin overwrites them with real
-    // values when approving.
+    // username is NOT NULL UNIQUE in signup_requests — use a unique placeholder
+    // since usernames are no longer collected at signup; admin sets it on approval.
+    const usernamePlaceholder = `signup_${empId}_${Date.now()}`;
     const result = await run(`
       INSERT INTO signup_requests (employee_id, username, password_hash, full_name, email)
       VALUES (?,?,?,?,?)
-    `, [empId, emailTrimmed, hash, '(Pending)', emailTrimmed]);
+    `, [empId, usernamePlaceholder, hash, '(Pending)', emailTrimmed]);
 
     const signupId = Number(result.lastInsertRowid);
     await audit(null, 'SIGNUP_REQUESTED', 'signup_request', signupId, { employee_id: empId, email: emailTrimmed });
