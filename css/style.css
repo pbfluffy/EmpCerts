@@ -1,0 +1,334 @@
+/* ── Variables ── */
+:root {
+  --primary: #2952a3;
+  --primary-dark: #1e3d7a;
+  --primary-light: #e8edf8;
+  --bg: #f4f6fa;
+  --card: #ffffff;
+  --border: #dde3ed;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --success: #1a7f37;
+  --success-bg: #d1fae5;
+  --warn: #b8860b;
+  --warn-bg: #fef3c7;
+  --danger: #c0392b;
+  --danger-bg: #fee2e2;
+  --info-bg: #e0e7ff;
+  --info-text: #3730a3;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; -webkit-text-size-adjust: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100dvh;
+}
+
+/* ── Top bar ── */
+.topbar {
+  background: var(--primary);
+  color: white;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.topbar h1 {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.topbar .who {
+  font-size: 12px;
+  opacity: .9;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.topbar button {
+  background: rgba(255,255,255,.15);
+  border: none;
+  color: white;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  touch-action: manipulation;
+  transition: background .15s;
+}
+.topbar button:hover, .topbar button:active { background: rgba(255,255,255,.28); }
+
+/* ── Layout ── */
+.container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ── Cards ── */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+}
+.card h2 {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.card h3 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin: 20px 0 8px;
+}
+.card h3:first-child { margin-top: 0; }
+
+/* ── Forms ── */
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 14px 0 5px;
+  color: var(--text);
+}
+input, select, textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-family: inherit;
+  color: var(--text);
+  background: white;
+  transition: border-color .15s, box-shadow .15s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(41,82,163,.15);
+}
+textarea { resize: vertical; min-height: 70px; }
+
+/* ── Buttons ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 11px 20px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  margin-top: 16px;
+  touch-action: manipulation;
+  transition: background .15s, transform .1s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn:hover { background: var(--primary-dark); }
+.btn:active { transform: scale(.97); }
+.btn.secondary { background: var(--muted); }
+.btn.secondary:hover { background: #4b5563; }
+.btn.danger { background: var(--danger); }
+.btn.danger:hover { background: #a93226; }
+.btn.success { background: var(--success); }
+.btn.small {
+  padding: 6px 12px;
+  font-size: 12px;
+  margin-top: 0;
+}
+
+/* ── Tables ── */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -20px; padding: 0 20px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 480px; }
+th {
+  padding: 8px 10px;
+  border-bottom: 2px solid var(--border);
+  text-align: left;
+  color: var(--muted);
+  font-weight: 700;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  white-space: nowrap;
+}
+td {
+  padding: 10px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  word-break: break-word;
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg); }
+
+/* ── Badges ── */
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.badge.Submitted, .badge.Generated { background: var(--info-bg); color: var(--info-text); }
+.badge.Completed { background: var(--success-bg); color: var(--success); }
+.badge.PendingApproval { background: var(--warn-bg); color: var(--warn); }
+.badge.Approved { background: #dbeafe; color: #1d4ed8; }
+.badge.Rejected { background: var(--danger-bg); color: var(--danger); }
+
+/* ── Messages ── */
+.error { color: var(--danger); font-size: 13px; margin-top: 10px; font-weight: 500; }
+.success-msg { color: var(--success); font-size: 13px; margin-top: 10px; font-weight: 500; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.5; }
+code { font-family: 'SF Mono', Consolas, monospace; background: var(--bg); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+
+/* ── Nav tabs ── */
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.nav-tabs a {
+  text-decoration: none;
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background .15s, color .15s;
+  white-space: nowrap;
+}
+.nav-tabs a.active { background: var(--primary); color: white; }
+.nav-tabs a:not(.active):hover { background: var(--primary-light); color: var(--primary); }
+
+/* ── Login / Signup screens ── */
+.login-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 20px 16px;
+}
+.login-card {
+  width: 100%;
+  max-width: 400px;
+}
+.login-card h1 {
+  text-align: center;
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+/* ── Misc ── */
+.flex-row { display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap; }
+.flex-row > * { flex: 1; min-width: 120px; }
+
+details.card summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+details.card summary::before {
+  content: '▶';
+  font-size: 10px;
+  color: var(--muted);
+  transition: transform .2s;
+}
+details.card[open] summary::before { transform: rotate(90deg); }
+details.card > div { margin-top: 16px; }
+
+/* ── Modals ── */
+.modal-bg {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.45);
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 16px;
+  overflow-y: auto;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: white;
+  border-radius: var(--radius);
+  padding: 22px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  margin: auto;
+}
+.modal h2 { font-size: 16px; margin-bottom: 14px; }
+
+/* ── Search box ── */
+#userSearch {
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .container { padding: 10px; }
+  .card { padding: 14px; border-radius: 8px; }
+  .topbar h1 { font-size: 13px; }
+  .topbar .who { font-size: 11px; }
+  .btn { padding: 12px 16px; font-size: 14px; }
+  .btn.small { padding: 8px 12px; font-size: 12px; }
+  input, select, textarea { font-size: 16px; /* prevents iOS zoom */ }
+  .flex-row { flex-direction: column; gap: 0; }
+  .flex-row > * { min-width: 100%; }
+  .nav-tabs { gap: 4px; }
+  .nav-tabs a { padding: 8px 10px; font-size: 12px; }
+  .modal { padding: 16px; }
+  th { font-size: 10px; }
+  td { font-size: 12px; padding: 8px 6px; }
+}
+
+@media (max-width: 380px) {
+  .topbar { padding: 10px 12px; }
+  .topbar h1 { font-size: 12px; }
+}

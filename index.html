@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Login — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="card login-card">
+    <h1>Employee Certificate System</h1>
+    <form id="loginForm">
+      <label>Email</label>
+      <input type="email" id="email" required autocomplete="email" placeholder="your.email@company.com">
+      <label>Password</label>
+      <input type="password" id="password" required autocomplete="current-password">
+      <button class="btn" style="width:100%;margin-top:18px" type="submit">Log In</button>
+      <div class="error" id="err"></div>
+    </form>
+    <p class="hint" style="text-align:center;margin-top:14px">
+      Don't have an account? <a href="signup.html">Request one</a>
+    </p>
+  </div>
+</div>
+<script>
+document.getElementById('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const errEl = document.getElementById('err');
+  errEl.textContent = '';
+  try {
+    const res = await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'login', email, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    if (data.user.must_change_password) {
+      window.location.href = 'change-password.html';
+    } else {
+      window.location.href = 'dashboard.html';
+    }
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Users — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="container">
+  <div class="nav-tabs" id="nav"></div>
+  <div class="card">
+    <h2>Employees</h2>
+    <p class="hint" style="margin-bottom:12px">You can view and update employee information. Password, role, and account status changes are managed by the System Administrator.</p>
+    <input type="text" id="userSearch" placeholder="Search by name, email, or department...">
+    <div class="table-wrap" style="margin-top:14px">
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Position</th><th>Role</th><th>Status</th><th></th></tr></thead>
+        <tbody id="rows"><tr><td colspan="8">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="editModalBg">
+  <div class="modal">
+    <h2>Edit Employee Info</h2>
+    <div id="editInfo" style="font-size:13px;color:var(--muted);margin-bottom:12px"></div>
+    <label>Full Name</label>
+    <input type="text" id="edit_full_name">
+    <label>Email</label>
+    <input type="email" id="edit_email">
+    <label>Department</label>
+    <input type="text" id="edit_department">
+    <label>Position</label>
+    <input type="text" id="edit_position">
+    <label>Joining Date</label>
+    <input type="date" id="edit_joining_date">
+    <div class="flex-row" style="margin-top:16px">
+      <button class="btn" id="saveEditBtn">Save</button>
+      <button class="btn secondary" id="cancelEditBtn">Cancel</button>
+    </div>
+    <div class="error" id="editErr"></div>
+    <div class="success-msg" id="editOk"></div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+let allUsers = [];
+let editingId = null;
+
+(async () => {
+  const user = await requireSession();
+  if (!user) return;
+  if (!['hr_staff','hr_director'].includes(user.role)) { window.location.href = 'dashboard.html'; return; }
+  renderTopbar(user);
+  renderNav(user, 'hr-users.html');
+  await loadUsers();
+})();
+
+async function loadUsers() {
+  const { users } = await api('GET', '/api/hr/users');
+  allUsers = users;
+  renderTable();
+}
+
+function renderTable() {
+  const q = document.getElementById('userSearch').value.trim().toLowerCase();
+  const filtered = q
+    ? allUsers.filter(u => [u.full_name, u.email, u.department, u.position]
+        .filter(Boolean).some(v => v.toLowerCase().includes(q)))
+    : allUsers;
+
+  const tbody = document.getElementById('rows');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="8">${q ? 'No matches.' : 'No users found.'}</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(u => `
+    <tr>
+      <td>${u.employee_id}</td>
+      <td>${u.full_name}</td>
+      <td>${u.email || ''}</td>
+      <td>${u.department || ''}</td>
+      <td>${u.position || ''}</td>
+      <td>${roleLabel(u.role)}</td>
+      <td><span class="badge ${u.status === 'active' ? 'Completed' : 'Rejected'}">${u.status === 'active' ? 'Active' : 'Disabled'}</span></td>
+      <td><button class="btn small" onclick='openEdit(${JSON.stringify(u)})'>Edit</button></td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('userSearch').addEventListener('input', renderTable);
+
+function openEdit(u) {
+  editingId = u.employee_id;
+  document.getElementById('editInfo').textContent = `Employee ID: ${u.employee_id}`;
+  document.getElementById('edit_full_name').value = u.full_name || '';
+  document.getElementById('edit_email').value = u.email || '';
+  document.getElementById('edit_department').value = u.department || '';
+  document.getElementById('edit_position').value = u.position || '';
+  document.getElementById('edit_joining_date').value = u.joining_date || '';
+  document.getElementById('editErr').textContent = '';
+  document.getElementById('editOk').textContent = '';
+  document.getElementById('editModalBg').classList.add('open');
+}
+document.getElementById('cancelEditBtn').onclick = () => document.getElementById('editModalBg').classList.remove('open');
+
+document.getElementById('saveEditBtn').onclick = async () => {
+  const errEl = document.getElementById('editErr');
+  const okEl = document.getElementById('editOk');
+  errEl.textContent = ''; okEl.textContent = '';
+  try {
+    await api('PUT', `/api/hr/users?id=${editingId}`, {
+      full_name: document.getElementById('edit_full_name').value,
+      email: document.getElementById('edit_email').value,
+      department: document.getElementById('edit_department').value,
+      position: document.getElementById('edit_position').value
+    });
+    okEl.textContent = 'Saved.';
+    await loadUsers();
+    setTimeout(() => document.getElementById('editModalBg').classList.remove('open'), 800);
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+};
+</script>
+</body>
+</html>

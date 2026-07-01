@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Employee Certificate System</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="topbar" id="topbar"></div>
+<div class="container">
+  <div class="nav-tabs" id="nav"></div>
+
+  <div class="nav-tabs" style="margin-bottom:14px">
+    <a href="#" id="tabUsersBtn" class="active" onclick="showTab('users');return false;">Users</a>
+    <a href="#" id="tabSignupsBtn" onclick="showTab('signups');return false;">Signup Requests <span id="signupBadge"></span></a>
+    <a href="#" id="tabRolesBtn" onclick="showTab('roles');return false;">Roles</a>
+  </div>
+
+  <div id="usersTab">
+    <details class="card">
+      <summary style="cursor:pointer;font-weight:600;font-size:14px">Create User</summary>
+      <div style="margin-top:14px">
+      <form id="createForm">
+        <label>Employee ID</label>
+        <input id="c_employee_id" type="number" min="1" placeholder="e.g. 1001" required>
+        <label>Full Name</label><input id="c_full_name" required>
+        <div class="flex-row">
+          <div style="flex:1"><label>Department</label><input id="c_department"></div>
+          <div style="flex:1"><label>Position</label><input id="c_position"></div>
+        </div>
+        <label>Email</label><input id="c_email" type="email" required>
+        <label>Role</label>
+        <select id="c_role">
+          <option value="employee">Employee</option>
+          <option value="hr_staff">HR Staff</option>
+          <option value="hr_director">HR Director</option>
+          <option value="admin">System Administrator</option>
+        </select>
+        <button class="btn" type="submit">Create User</button>
+        <div class="error" id="createErr"></div>
+        <div id="createOk" style="display:none;margin-top:12px;padding:12px;background:var(--success-bg);border-radius:6px;font-size:13px"></div>
+      </form>
+      </div>
+    </details>
+
+    <div class="card">
+      <h2>Users</h2>
+      <input type="text" id="userSearch" placeholder="Search by name, email, or department..." style="margin-bottom:14px">
+
+      <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Active</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Position</th><th>Role</th><th></th></tr></thead>
+        <tbody id="activeUserRows"><tr><td colspan="7">Loading...</td></tr></tbody>
+      </table></div>
+
+      <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin:20px 0 8px">Disabled</h3>
+      <div class="table-wrap"><table>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Position</th><th>Role</th><th></th></tr></thead>
+        <tbody id="disabledUserRows"><tr><td colspan="7">Loading...</td></tr></tbody>
+      </table></div>
+    </div>
+
+    <details class="card">
+      <summary style="cursor:pointer;font-weight:600;font-size:14px">Bulk Import Users (CSV)</summary>
+      <div style="margin-top:14px">
+        <p class="hint">
+          CSV columns: <code>Employee_ID,full_name,department,position,email,role,joining_date</code><br>
+          <strong>New users</strong>: a secure temporary password is auto-generated and shown after import. The user must set a new password on first login.<br>
+          <strong>Existing users</strong> (matched by Employee_ID): info is updated, password is never touched.<br>
+          <code>role</code> must be one of: employee, hr_staff, hr_director, admin (defaults to employee if blank).<br>
+          <code>department</code> and <code>position</code> are optional.
+        </p>
+        <a href="#" id="downloadTemplate" class="hint" style="display:inline-block;margin-bottom:10px">Download CSV template</a><br>
+        <input type="file" id="csvFile" accept=".csv">
+        <button class="btn" id="importBtn" type="button">Import Users</button>
+        <div class="error" id="importErr"></div>
+        <div class="success-msg" id="importOk"></div>
+        <div id="importDetails" style="margin-top:10px;font-size:13px"></div>
+      </div>
+    </details>
+  </div>
+
+  <div id="signupsTab" style="display:none">
+    <div class="card">
+      <h2>Pending Signup Requests</h2>
+      <p class="hint">People who used "Request an account" on the login page show up here until approved or rejected.</p>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Emp ID</th><th>Email</th><th>Submitted</th><th></th></tr></thead>
+        <tbody id="signupRows"><tr><td colspan="4">Loading...</td></tr></tbody>
+      </table></div>
+    </div>
+  </div>
+
+  <div id="rolesTab" style="display:none">
+    <div class="card">
+      <h2>Roles &amp; What They Can Do</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Role</th><th>Permissions</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Employee</strong></td><td>Submit certificate requests; view and download only their own certificates</td></tr>
+          <tr><td><strong>HR Staff</strong></td><td>Approve or reject non-salary certificate requests; view all employees' requests (read-only)</td></tr>
+          <tr><td><strong>HR Director</strong></td><td>Approve or reject salary certificate requests, entering the official salary figure at approval time; view all employees' requests (read-only)</td></tr>
+          <tr><td><strong>System Administrator</strong></td><td>User and role management only — create/edit/delete users, assign roles, enable/disable accounts, review signup requests. No access to certificate requests or approvals.</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-bg" id="signupModalBg">
+  <div class="modal" style="width:480px">
+    <h2>Review Signup Request</h2>
+    <div id="signupModalInfo" style="font-size:13px;margin-bottom:14px;padding:10px;background:var(--bg);border-radius:6px"></div>
+    <p class="hint" style="margin-bottom:12px">Fill in the employee details below before approving. These will be saved to their account.</p>
+    <label>Full Name <span style="color:var(--danger)">*</span></label>
+    <input type="text" id="signupFullName" required placeholder="Jane Doe">
+
+    <div class="flex-row">
+      <div style="flex:1"><label>Department <span style="color:var(--danger)">*</span></label><input type="text" id="signupDepartment" required placeholder="Engineering"></div>
+      <div style="flex:1"><label>Position <span style="color:var(--danger)">*</span></label><input type="text" id="signupPosition" required placeholder="Developer"></div>
+    </div>
+    <label>Joining Date <span style="color:var(--danger)">*</span></label>
+    <input type="date" id="signupJoiningDate" required>
+    <label>Assign Role <span style="color:var(--danger)">*</span></label>
+    <select id="signupRole">
+      <option value="employee">Employee</option>
+      <option value="hr_staff">HR Staff</option>
+      <option value="hr_director">HR Director</option>
+      <option value="admin">System Administrator</option>
+    </select>
+    <label>Comment (required if rejecting)</label>
+    <textarea id="signupComment"></textarea>
+    <div class="flex-row" style="margin-top:14px">
+      <button class="btn" id="approveSignupBtn">Approve</button>
+      <button class="btn danger" id="rejectSignupBtn">Reject</button>
+      <button class="btn secondary" id="cancelSignupBtn">Cancel</button>
+    </div>
+    <div class="error" id="signupModalErr"></div>
+  </div>
+</div>
+
+<script src="js/common.js"></script>
+<script>
+let currentSignupId = null;
+
+(async () => {
+  const user = await requireSession();
+  if (!user) return;
+  if (user.role !== 'admin') { window.location.href = 'dashboard.html'; return; }
+  renderTopbar(user);
+  renderNav(user, 'admin.html');
+  await loadUsers();
+  await loadSignups();
+})();
+
+function showTab(tab) {
+  document.getElementById('usersTab').style.display = tab === 'users' ? '' : 'none';
+  document.getElementById('signupsTab').style.display = tab === 'signups' ? '' : 'none';
+  document.getElementById('rolesTab').style.display = tab === 'roles' ? '' : 'none';
+  document.getElementById('tabUsersBtn').classList.toggle('active', tab === 'users');
+  document.getElementById('tabSignupsBtn').classList.toggle('active', tab === 'signups');
+  document.getElementById('tabRolesBtn').classList.toggle('active', tab === 'roles');
+}
+
+let allUsers = [];
+
+async function loadUsers() {
+  const { users } = await api('GET', '/api/admin/users');
+  allUsers = users;
+  renderUserTables();
+}
+
+function renderUserTables() {
+  const query = document.getElementById('userSearch').value.trim().toLowerCase();
+  const matches = (u) => !query || [u.full_name, u.email, u.department, u.position]
+    .filter(Boolean).some(field => field.toLowerCase().includes(query));
+
+  const rowHtml = (u) => `
+    <tr>
+      <td>${u.employee_id}</td><td>${u.full_name}</td>
+      <td>${u.email || ''}</td><td>${u.department || ''}</td><td>${u.position || ''}</td><td>${roleLabel(u.role)}</td>
+      <td>
+        <button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
+          ${u.status === 'active' ? 'Disable' : 'Enable'}
+        </button>
+        ${u.status === 'disabled' ? `<button class="btn small danger" onclick="deleteUser(${u.employee_id}, '${u.username}')">Delete</button>` : ''}
+      </td>
+    </tr>
+  `;
+
+  const active = allUsers.filter(u => u.status === 'active' && matches(u));
+  const disabled = allUsers.filter(u => u.status === 'disabled' && matches(u));
+
+  document.getElementById('activeUserRows').innerHTML = active.length > 0
+    ? active.map(rowHtml).join('')
+    : `<tr><td colspan="7">${query ? 'No matches.' : 'No active users.'}</td></tr>`;
+
+  document.getElementById('disabledUserRows').innerHTML = disabled.length > 0
+    ? disabled.map(rowHtml).join('')
+    : `<tr><td colspan="7">${query ? 'No matches.' : 'No disabled users.'}</td></tr>`;
+}
+
+document.getElementById('userSearch').addEventListener('input', renderUserTables);
+
+async function toggleStatus(id, currentStatus) {
+  const status = currentStatus === 'active' ? 'disabled' : 'active';
+  await api('PUT', `/api/admin/users/${id}`, { status });
+  await loadUsers();
+}
+
+async function deleteUser(id, username) {
+  if (!confirm(`Permanently delete user "${username}"? This cannot be undone.`)) return;
+  try {
+    await api('DELETE', `/api/admin/users/${id}`);
+    await loadUsers();
+  } catch (err) {
+    alert(err.message);
+  }
+}
+
+async function loadSignups() {
+  const { signups } = await api('GET', '/api/admin/signups');
+  const badge = document.getElementById('signupBadge');
+  badge.textContent = signups.length > 0 ? `(${signups.length})` : '';
+  const tbody = document.getElementById('signupRows');
+  if (signups.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4">No pending signup requests.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = signups.map(s => `
+    <tr>
+      <td>${s.employee_id || '—'}</td>
+      <td>${s.email}</td>
+      <td>${new Date(s.created_date).toLocaleString()}</td>
+      <td><button class="btn small" onclick='openSignupModal(${JSON.stringify(s)})'>Review</button></td>
+    </tr>
+  `).join('');
+}
+
+function openSignupModal(signup) {
+  currentSignupId = signup.signup_id;
+  document.getElementById('signupModalInfo').innerHTML =
+    `<strong>Employee ID:</strong> ${signup.employee_id || '—'}<br><strong>Email:</strong> ${signup.email}<br><strong>Submitted:</strong> ${new Date(signup.created_date).toLocaleString()}`;
+  document.getElementById('signupFullName').value = '';
+  document.getElementById('signupDepartment').value = '';
+  document.getElementById('signupPosition').value = '';
+  document.getElementById('signupRole').value = 'employee';
+  document.getElementById('signupJoiningDate').value = '';
+  document.getElementById('signupComment').value = '';
+  document.getElementById('signupModalErr').textContent = '';
+  document.getElementById('signupModalBg').classList.add('open');
+}
+document.getElementById('cancelSignupBtn').onclick = () => document.getElementById('signupModalBg').classList.remove('open');
+
+async function decideSignup(decision) {
+  const errEl = document.getElementById('signupModalErr');
+  const comment = document.getElementById('signupComment').value;
+
+  if (decision === 'Approved') {
+    const full_name = document.getElementById('signupFullName').value.trim();
+    
+    const department = document.getElementById('signupDepartment').value.trim();
+    const position = document.getElementById('signupPosition').value.trim();
+    const joining_date = document.getElementById('signupJoiningDate').value;
+    if (!full_name || !department || !position || !joining_date) {
+      errEl.textContent = 'All fields (Full Name, Department, Position, Joining Date) are required before approving.';
+      return;
+    }
+  }
+  if (decision === 'Rejected' && !comment.trim()) {
+    errEl.textContent = 'A comment is required when rejecting.';
+    return;
+  }
+  try {
+    await api('POST', '/api/admin/signups', {
+      signup_id: currentSignupId,
+      decision,
+      comment,
+      role: document.getElementById('signupRole').value,
+      full_name: document.getElementById('signupFullName').value.trim(),
+      department: document.getElementById('signupDepartment').value.trim(),
+      position: document.getElementById('signupPosition').value.trim(),
+      joining_date: document.getElementById('signupJoiningDate').value
+    });
+    document.getElementById('signupModalBg').classList.remove('open');
+    await loadSignups();
+    await loadUsers();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+}
+document.getElementById('approveSignupBtn').onclick = () => decideSignup('Approved');
+document.getElementById('rejectSignupBtn').onclick = () => decideSignup('Rejected');
+
+document.getElementById('downloadTemplate').addEventListener('click', (e) => {
+  e.preventDefault();
+  const csv = 'Employee_ID,full_name,department,position,email,role\n' +
+              '1001,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'user_import_template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById('importBtn').addEventListener('click', async () => {
+  const fileInput = document.getElementById('csvFile');
+  const errEl = document.getElementById('importErr');
+  const okEl = document.getElementById('importOk');
+  const detailsEl = document.getElementById('importDetails');
+  errEl.textContent = ''; okEl.textContent = ''; detailsEl.innerHTML = '';
+
+  const file = fileInput.files[0];
+  if (!file) {
+    errEl.textContent = 'Please choose a CSV file first.';
+    return;
+  }
+
+  try {
+    const csvText = await file.text();
+    const result = await api('POST', '/api/admin/users', { csv: csvText });
+    okEl.textContent = `Import complete: ${result.created.length} created, ${result.updated.length} updated, ${result.skipped.length} skipped.`;
+
+    let html = '';
+    if (result.created.length > 0) {
+      html += `<div style="margin-bottom:10px">
+        <strong>Created (${result.created.length}) — Temporary passwords below. Share with each employee:</strong>
+        <table style="margin-top:8px;font-size:12px">
+          <thead><tr><th>Emp ID</th><th>Username</th><th>Role</th><th style="color:var(--danger)">Temp Password</th></tr></thead>
+          <tbody>${result.created.map(c => `
+            <tr><td>${c.employee_id}</td><td>${c.username}</td><td>${c.role}</td>
+            <td style="font-family:monospace;color:var(--danger);font-weight:700">${c.temp_password}</td></tr>
+          `).join('')}</tbody>
+        </table>
+        <p class="hint" style="margin-top:6px">Each user will be prompted to set their own password on first login.</p>
+      </div>`;
+    }
+    if (result.updated.length > 0) {
+      html += '<strong>Updated:</strong><ul>' +
+        result.updated.map(c => `<li>Employee_ID ${c.employee_id} — ${c.username} (${c.role})</li>`).join('') +
+        '</ul>';
+    }
+    if (result.skipped.length > 0) {
+      html += '<strong style="color:var(--danger)">Skipped:</strong><ul>' +
+        result.skipped.map(s => `<li>Row ${s.row}${s.username ? ' (' + s.username + ')' : ''}: ${s.reason}</li>`).join('') +
+        '</ul>';
+    }
+    detailsEl.innerHTML = html;
+
+    fileInput.value = '';
+    await loadUsers();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+
+document.getElementById('createForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('createErr');
+  const okEl = document.getElementById('createOk');
+  errEl.textContent = ''; okEl.style.display = 'none';
+  try {
+    const result = await api('POST', '/api/admin/users', {
+      employee_id: document.getElementById('c_employee_id').value,
+      full_name: document.getElementById('c_full_name').value,
+      department: document.getElementById('c_department').value,
+      position: document.getElementById('c_position').value,
+      email: document.getElementById('c_email').value,
+      joining_date: document.getElementById('c_joining_date').value || undefined,
+      role: document.getElementById('c_role').value
+    });
+    okEl.style.display = '';
+    okEl.innerHTML = `User created (Employee ID: <strong>${result.employee_id}</strong>).<br>
+      Temporary password: <strong style="font-family:monospace;color:var(--danger)">${result.temp_password}</strong><br>
+      <span style="color:var(--muted);font-size:12px">Share this with the employee. They will be asked to set a new password on first login.</span>`;
+    e.target.reset();
+    await loadUsers();
+  } catch (err) {
+    errEl.textContent = err.message;
+  }
+});
+</script>
+</body>
+</html>
