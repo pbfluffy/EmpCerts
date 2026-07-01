@@ -64,6 +64,7 @@ async function handleBulkImport(u, csv, res) {
     const email = get_('email');
     const department = get_('department');
     const position = get_('position');
+    const joining_date = get_('joining_date') || null;
     let role = get_('role').toLowerCase() || 'employee';
 
     if (!employeeIdRaw || !full_name || !email) {
@@ -87,6 +88,7 @@ async function handleBulkImport(u, csv, res) {
       const values = [autoUsername(employeeId), full_name, email, role];
       if (department !== undefined) { fields.push('department = ?'); values.push(department || null); }
       if (position !== undefined) { fields.push('position = ?'); values.push(position || null); }
+      if (joining_date !== undefined) { fields.push('joining_date = ?'); values.push(joining_date || null); }
       values.push(employeeId);
       await run(`UPDATE employees SET ${fields.join(', ')} WHERE employee_id = ?`, values);
       results.updated.push({ row: rowNum, employee_id: employeeId, role });
@@ -95,9 +97,9 @@ async function handleBulkImport(u, csv, res) {
       const tempPassword = generateTempPassword();
       const hash = bcrypt.hashSync(tempPassword, 10);
       await run(`
-        INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, must_change_password)
-        VALUES (?,?,?,?,?,?,?,?,1)
-      `, [employeeId, autoUsername(employeeId), hash, full_name, department || null, position || null, email, role]);
+        INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, joining_date, must_change_password)
+        VALUES (?,?,?,?,?,?,?,?,?,1)
+      `, [employeeId, autoUsername(employeeId), hash, full_name, department || null, position || null, email, role, joining_date, 1]);
       results.created.push({ row: rowNum, employee_id: employeeId, role, temp_password: tempPassword });
     }
   }
@@ -133,7 +135,7 @@ async function handler(req, res) {
     }
 
     // Single user creation — Employee ID is required (must come from HR records)
-    let { full_name, department, position, email, role, employee_id } = body;
+    let { full_name, department, position, email, role, employee_id, joining_date } = body;
     if (!full_name || !email || !employee_id) {
       return res.status(400).json({ error: 'Employee ID, full_name, and email are required' });
     }
@@ -152,9 +154,9 @@ async function handler(req, res) {
     const tempPassword = generateTempPassword();
     const hash = bcrypt.hashSync(tempPassword, 10);
     await run(`
-      INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, must_change_password)
-      VALUES (?,?,?,?,?,?,?,?,1)
-    `, [empId, autoUsername(empId), hash, full_name, department || null, position || null, email, role]);
+      INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, joining_date, must_change_password)
+      VALUES (?,?,?,?,?,?,?,?,?,1)
+    `, [empId, autoUsername(empId), hash, full_name, department || null, position || null, email, role, joining_date || null]);
 
     await audit(u.employee_id, 'CREATE_USER', 'employee', empId, { role });
     return res.status(201).json({ employee_id: empId, temp_password: tempPassword });

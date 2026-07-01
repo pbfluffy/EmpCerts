@@ -18,7 +18,7 @@ async function handler(req, res) {
 
   if (req.method === 'PUT') {
     const { id } = req.query;
-    const { full_name, department, position, email } = await readBody(req);
+    const { full_name, department, position, email, joining_date } = await readBody(req);
 
     const target = await get('SELECT * FROM employees WHERE employee_id = ?', [id]);
     if (!target) return res.status(404).json({ error: 'Not found' });
@@ -29,6 +29,7 @@ async function handler(req, res) {
     if (department !== undefined) { fields.push('department = ?'); values.push(department || null); }
     if (position !== undefined) { fields.push('position = ?'); values.push(position || null); }
     if (email !== undefined && email.trim()) { fields.push('email = ?'); values.push(email.trim()); }
+    if (joining_date !== undefined) { fields.push('joining_date = ?'); values.push(joining_date || null); }
 
     if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
     values.push(id);

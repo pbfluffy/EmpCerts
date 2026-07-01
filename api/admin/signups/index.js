@@ -20,7 +20,7 @@ async function handler(req, res) {
   }
 
   if (req.method === 'POST') {
-    const { signup_id, decision, role, comment, full_name, department, position } = await readBody(req);
+    const { signup_id, decision, role, comment, full_name, department, position, joining_date } = await readBody(req);
     if (!signup_id) return res.status(400).json({ error: 'signup_id is required' });
     if (!['Approved', 'Rejected'].includes(decision)) {
       return res.status(400).json({ error: 'decision must be Approved or Rejected' });
@@ -29,6 +29,7 @@ async function handler(req, res) {
       if (!full_name || !full_name.trim()) return res.status(400).json({ error: 'Full name is required' });
       if (!department || !department.trim()) return res.status(400).json({ error: 'Department is required' });
       if (!position || !position.trim()) return res.status(400).json({ error: 'Position is required' });
+      if (!joining_date) return res.status(400).json({ error: 'Joining date is required' });
       if (!role || !ROLES.includes(role)) return res.status(400).json({ error: 'A valid role is required' });
     }
 
@@ -53,16 +54,16 @@ async function handler(req, res) {
           return res.status(409).json({ error: `Employee ID ${signup.employee_id} is already in use. Reject this request.` });
         }
         await run(`
-          INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role)
-          VALUES (?,?,?,?,?,?,?,?)
+          INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, joining_date)
+          VALUES (?,?,?,?,?,?,?,?,?)
         `, [signup.employee_id, autoUsername(signup.employee_id), signup.password_hash,
-            full_name.trim(), department.trim(), position.trim(), signup.email, finalRole]);
+            full_name.trim(), department.trim(), position.trim(), signup.email, finalRole, joining_date || null]);
         newEmployeeId = signup.employee_id;
       } else {
         const result = await run(`
-          INSERT INTO employees (username, password_hash, full_name, department, position, email, role)
-          VALUES (?,?,?,?,?,?,?)
-        `, ['_tmp', signup.password_hash, full_name.trim(), department.trim(), position.trim(), signup.email, finalRole]);
+          INSERT INTO employees (username, password_hash, full_name, department, position, email, role, joining_date)
+          VALUES (?,?,?,?,?,?,?,?)
+        `, ['_tmp', signup.password_hash, full_name.trim(), department.trim(), position.trim(), signup.email, finalRole, joining_date || null]);
         newEmployeeId = Number(result.lastInsertRowid);
         await run('UPDATE employees SET username = ? WHERE employee_id = ?', [autoUsername(newEmployeeId), newEmployeeId]);
       }

@@ -65,7 +65,7 @@
       <summary style="cursor:pointer;font-weight:600;font-size:14px">Bulk Import Users (CSV)</summary>
       <div style="margin-top:14px">
         <p class="hint">
-          CSV columns: <code>Employee_ID,full_name,department,position,email,role</code><br>
+          CSV columns: <code>Employee_ID,full_name,department,position,email,role,joining_date</code><br>
           <strong>New users</strong>: a secure temporary password is auto-generated and shown after import. The user must set a new password on first login.<br>
           <strong>Existing users</strong> (matched by Employee_ID): info is updated, password is never touched.<br>
           <code>role</code> must be one of: employee, hr_staff, hr_director, admin (defaults to employee if blank).<br>
@@ -121,6 +121,8 @@
       <div style="flex:1"><label>Department <span style="color:var(--danger)">*</span></label><input type="text" id="signupDepartment" required placeholder="Engineering"></div>
       <div style="flex:1"><label>Position <span style="color:var(--danger)">*</span></label><input type="text" id="signupPosition" required placeholder="Developer"></div>
     </div>
+    <label>Joining Date <span style="color:var(--danger)">*</span></label>
+    <input type="date" id="signupJoiningDate" required>
     <label>Assign Role <span style="color:var(--danger)">*</span></label>
     <select id="signupRole">
       <option value="employee">Employee</option>
@@ -245,6 +247,7 @@ function openSignupModal(signup) {
   document.getElementById('signupDepartment').value = '';
   document.getElementById('signupPosition').value = '';
   document.getElementById('signupRole').value = 'employee';
+  document.getElementById('signupJoiningDate').value = '';
   document.getElementById('signupComment').value = '';
   document.getElementById('signupModalErr').textContent = '';
   document.getElementById('signupModalBg').classList.add('open');
@@ -260,8 +263,9 @@ async function decideSignup(decision) {
     
     const department = document.getElementById('signupDepartment').value.trim();
     const position = document.getElementById('signupPosition').value.trim();
-    if (!full_name || !department || !position) {
-      errEl.textContent = 'All fields (Full Name, Department, Position) are required before approving.';
+    const joining_date = document.getElementById('signupJoiningDate').value;
+    if (!full_name || !department || !position || !joining_date) {
+      errEl.textContent = 'All fields (Full Name, Department, Position, Joining Date) are required before approving.';
       return;
     }
   }
@@ -277,7 +281,8 @@ async function decideSignup(decision) {
       role: document.getElementById('signupRole').value,
       full_name: document.getElementById('signupFullName').value.trim(),
       department: document.getElementById('signupDepartment').value.trim(),
-      position: document.getElementById('signupPosition').value.trim()
+      position: document.getElementById('signupPosition').value.trim(),
+      joining_date: document.getElementById('signupJoiningDate').value
     });
     document.getElementById('signupModalBg').classList.remove('open');
     await loadSignups();
@@ -365,6 +370,7 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
       department: document.getElementById('c_department').value,
       position: document.getElementById('c_position').value,
       email: document.getElementById('c_email').value,
+      joining_date: document.getElementById('c_joining_date').value || undefined,
       role: document.getElementById('c_role').value
     });
     okEl.style.display = '';

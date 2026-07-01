@@ -35,6 +35,8 @@
     <input type="text" id="edit_department">
     <label>Position</label>
     <input type="text" id="edit_position">
+    <label>Joining Date</label>
+    <input type="date" id="edit_joining_date">
     <div class="flex-row" style="margin-top:16px">
       <button class="btn" id="saveEditBtn">Save</button>
       <button class="btn secondary" id="cancelEditBtn">Cancel</button>
@@ -99,6 +101,7 @@ function openEdit(u) {
   document.getElementById('edit_email').value = u.email || '';
   document.getElementById('edit_department').value = u.department || '';
   document.getElementById('edit_position').value = u.position || '';
+  document.getElementById('edit_joining_date').value = u.joining_date || '';
   document.getElementById('editErr').textContent = '';
   document.getElementById('editOk').textContent = '';
   document.getElementById('editModalBg').classList.add('open');
