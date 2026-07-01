@@ -114,6 +114,8 @@ async function decide(decision) {
     await api('POST', '/api/approvals', body);
     document.getElementById('modalBg').classList.remove('open');
     await load();
+    // Refresh the nav badge count after decision
+    renderNav(currentUser, 'approvals.html');
   } catch (e) {
     errEl.textContent = e.message;
   }
