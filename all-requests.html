@@ -17,7 +17,7 @@
       <thead>
         <tr>
           <th>ID</th><th>Employee</th><th>Reason</th><th>Salary</th>
-          <th>Delivery</th><th>Status</th><th>Created</th>
+          <th>Delivery</th><th>Status</th><th>Approved By</th><th>Created</th>
         </tr>
       </thead>
       <tbody id="rows"><tr><td colspan="7">Loading...</td></tr></tbody>
@@ -37,7 +37,7 @@
     const { requests } = await api('GET', '/api/requests?scope=all');
     const tbody = document.getElementById('rows');
     if (requests.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7">No requests yet.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8">No requests yet.</td></tr>`;
       return;
     }
     tbody.innerHTML = requests.map(r => `
@@ -48,6 +48,7 @@
         <td>${r.include_salary ? 'Yes' : 'No'}</td>
         <td>${r.delivery_method}</td>
         <td>${badge(r.status)}</td>
+        <td>${r.approver_name || '—'}</td>
         <td>${new Date(r.created_date).toLocaleString()}</td>
       </tr>
     `).join('');
