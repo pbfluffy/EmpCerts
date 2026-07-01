@@ -16,10 +16,10 @@
       <thead>
         <tr>
           <th>ID</th><th>Reason</th><th>Salary</th>
-          <th>Delivery</th><th>Status</th><th>Created</th><th></th>
+          <th>Delivery</th><th>Status</th><th>Approved By</th><th>Created</th><th></th>
         </tr>
       </thead>
-      <tbody id="rows"><tr><td colspan="7">Loading...</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="8">Loading...</td></tr></tbody>
     </table></div>
   </div>
 </div>
@@ -46,6 +46,7 @@
         <td>${r.include_salary ? 'Yes' : 'No'}</td>
         <td>${r.delivery_method}</td>
         <td>${badge(r.status)}</td>
+        <td>${r.approver_name || '—'}</td>
         <td>${new Date(r.created_date).toLocaleString()}</td>
         <td>${r.status === 'Completed' ? `<a class="btn small" href="/api/requests/${r.request_id}?download=1">Download</a>` : ''}</td>
       </tr>
