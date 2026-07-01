@@ -4,13 +4,16 @@ const { run, get, all, audit } = require('../../../lib/db');
 const { requireRole, readBody } = require('../../../lib/auth');
 
 const ROLES = ['employee', 'hr_staff', 'hr_director', 'admin'];
-// password column is now optional — auto-generated for new accounts
-const REQUIRED_CSV_HEADERS = ['employee_id', 'username', 'full_name', 'email'];
+// username is now auto-managed internally as emp_<employee_id>
+const REQUIRED_CSV_HEADERS = ['employee_id', 'full_name', 'email'];
+
+function autoUsername(employeeId) {
+  return `emp_${employeeId}`;
+}
 
 function generateTempPassword() {
-  // 12-character alphanumeric temp password, easy to share
   return crypto.randomBytes(9).toString('base64').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12)
-    + Math.floor(10 + Math.random() * 90); // always ends with 2 digits for complexity
+    + Math.floor(10 + Math.random() * 90);
 }
 
 function parseCSV(text) {
@@ -57,53 +60,45 @@ async function handleBulkImport(u, csv, res) {
     const get_ = (col) => (colIndex[col] !== undefined ? (row[colIndex[col]] || '').trim() : '');
 
     const employeeIdRaw = get_('employee_id');
-    const username = get_('username');
-    const password = get_('password');
     const full_name = get_('full_name');
     const email = get_('email');
     const department = get_('department');
     const position = get_('position');
     let role = get_('role').toLowerCase() || 'employee';
 
-    if (!employeeIdRaw || !username || !full_name || !email) {
-      results.skipped.push({ row: rowNum, reason: 'Missing required field(s) (Employee_ID, username, full_name, email)' });
+    if (!employeeIdRaw || !full_name || !email) {
+      results.skipped.push({ row: rowNum, reason: 'Missing required field(s) (Employee_ID, full_name, email)' });
       continue;
     }
     const employeeId = Number(employeeIdRaw);
     if (!Number.isInteger(employeeId) || employeeId <= 0) {
-      results.skipped.push({ row: rowNum, username, reason: `Invalid Employee_ID "${employeeIdRaw}" — must be a positive whole number` });
+      results.skipped.push({ row: rowNum, reason: `Invalid Employee_ID "${employeeIdRaw}" — must be a positive whole number` });
       continue;
     }
     if (!ROLES.includes(role)) {
-      results.skipped.push({ row: rowNum, username, reason: `Invalid role "${role}" — must be one of ${ROLES.join(', ')}` });
+      results.skipped.push({ row: rowNum, reason: `Invalid role "${role}" — must be one of ${ROLES.join(', ')}` });
       continue;
     }
 
     const existingById = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [employeeId]);
     if (existingById) {
-      // UPDATE existing user — password column is ignored entirely on updates
+      // UPDATE — auto-refresh username too in case it was set to something old
       const fields = ['username = ?', 'full_name = ?', 'email = ?', 'role = ?'];
-      const values = [username, full_name, email, role];
+      const values = [autoUsername(employeeId), full_name, email, role];
       if (department !== undefined) { fields.push('department = ?'); values.push(department || null); }
       if (position !== undefined) { fields.push('position = ?'); values.push(position || null); }
       values.push(employeeId);
       await run(`UPDATE employees SET ${fields.join(', ')} WHERE employee_id = ?`, values);
-      results.updated.push({ row: rowNum, employee_id: employeeId, username, role });
+      results.updated.push({ row: rowNum, employee_id: employeeId, role });
     } else {
-      // CREATE new user — auto-generate a temp password, flag for reset on first login
-      const existingByUsername = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
-      if (existingByUsername) {
-        results.skipped.push({ row: rowNum, username, reason: `Username "${username}" is already used by Employee_ID ${existingByUsername.employee_id}` });
-        continue;
-      }
+      // CREATE — auto-generate username and temp password
       const tempPassword = generateTempPassword();
       const hash = bcrypt.hashSync(tempPassword, 10);
       await run(`
         INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, must_change_password)
         VALUES (?,?,?,?,?,?,?,?,1)
-      `, [employeeId, username, hash, full_name, department || null, position || null, email, role]);
-      // Return temp password in results so admin can distribute it
-      results.created.push({ row: rowNum, employee_id: employeeId, username, role, temp_password: tempPassword });
+      `, [employeeId, autoUsername(employeeId), hash, full_name, department || null, position || null, email, role]);
+      results.created.push({ row: rowNum, employee_id: employeeId, role, temp_password: tempPassword });
     }
   }
 
@@ -119,13 +114,12 @@ async function handler(req, res) {
   const u = req.user;
 
   if (req.method === 'GET') {
-    // ?audit=1 -> audit log instead of user list
     if (req.query.audit === '1') {
       const logs = await all('SELECT * FROM audit_log ORDER BY created_at DESC LIMIT 500');
       return res.status(200).json({ logs });
     }
     const rows = await all(`
-      SELECT employee_id, username, full_name, department, position, email, role, status, created_date
+      SELECT employee_id, full_name, department, position, email, role, status, created_date
       FROM employees ORDER BY created_date DESC
     `);
     return res.status(200).json({ users: rows });
@@ -134,29 +128,46 @@ async function handler(req, res) {
   if (req.method === 'POST') {
     const body = await readBody(req);
 
-    // CSV bulk import path
     if (typeof body.csv === 'string' && body.csv.trim()) {
       return handleBulkImport(u, body.csv, res);
     }
 
-    // Single user creation path
-    let { username, password, full_name, department, position, email, role } = body;
-    if (!username || !password || !full_name || !email) {
-      return res.status(400).json({ error: 'username, password, full_name, email are required' });
+    // Single user creation — auto-assign username from employee_id if provided,
+    // else DB auto-assigns employee_id and we update username afterward.
+    let { full_name, department, position, email, role, employee_id } = body;
+    if (!full_name || !email) {
+      return res.status(400).json({ error: 'full_name and email are required' });
     }
     role = ROLES.includes(role) ? role : 'employee';
-    const existing = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
-    if (existing) return res.status(409).json({ error: 'Username already exists' });
 
-    const hash = bcrypt.hashSync(password, 10);
-    const result = await run(`
-      INSERT INTO employees (username, password_hash, full_name, department, position, email, role)
-      VALUES (?,?,?,?,?,?,?)
-    `, [username, hash, full_name, department || null, position || null, email, role]);
+    const existingEmail = await get('SELECT employee_id FROM employees WHERE LOWER(email) = ?', [email.toLowerCase()]);
+    if (existingEmail) return res.status(409).json({ error: 'Email already in use' });
 
-    const employeeId = Number(result.lastInsertRowid);
-    await audit(u.employee_id, 'CREATE_USER', 'employee', employeeId, { username, role });
-    return res.status(201).json({ employee_id: employeeId });
+    const tempPassword = generateTempPassword();
+    const hash = bcrypt.hashSync(tempPassword, 10);
+
+    let newEmployeeId;
+    if (employee_id) {
+      const empId = Number(employee_id);
+      const existingId = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [empId]);
+      if (existingId) return res.status(409).json({ error: `Employee ID ${empId} is already in use` });
+      await run(`
+        INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, must_change_password)
+        VALUES (?,?,?,?,?,?,?,?,1)
+      `, [empId, autoUsername(empId), hash, full_name, department || null, position || null, email, role]);
+      newEmployeeId = empId;
+    } else {
+      // Let DB auto-assign, then update username to match
+      const result = await run(`
+        INSERT INTO employees (username, password_hash, full_name, department, position, email, role, must_change_password)
+        VALUES (?,?,?,?,?,?,?,1)
+      `, ['_tmp', hash, full_name, department || null, position || null, email, role]);
+      newEmployeeId = Number(result.lastInsertRowid);
+      await run('UPDATE employees SET username = ? WHERE employee_id = ?', [autoUsername(newEmployeeId), newEmployeeId]);
+    }
+
+    await audit(u.employee_id, 'CREATE_USER', 'employee', newEmployeeId, { role });
+    return res.status(201).json({ employee_id: newEmployeeId, temp_password: tempPassword });
   }
 
   res.status(405).json({ error: 'Method not allowed' });

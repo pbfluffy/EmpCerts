@@ -28,8 +28,12 @@ module.exports = async (req, res) => {
     if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
 
     const sessionUser = {
-      employee_id: user.employee_id, username: user.username, full_name: user.full_name,
-      role: user.role, department: user.department, position: user.position, email: user.email,
+      employee_id: user.employee_id,
+      full_name: user.full_name,
+      role: user.role,
+      department: user.department,
+      position: user.position,
+      email: user.email,
       must_change_password: user.must_change_password === 1 ? true : false
     };
     setAuthCookie(res, sessionUser);
@@ -88,7 +92,7 @@ module.exports = async (req, res) => {
     const result = await run(`
       INSERT INTO signup_requests (employee_id, username, password_hash, full_name, email)
       VALUES (?,?,?,?,?)
-    `, [empId, emailTrimmed, hash, '(Pending — to be filled in by admin)', emailTrimmed]);
+    `, [empId, emailTrimmed, hash, '(Pending)', emailTrimmed]);
 
     const signupId = Number(result.lastInsertRowid);
     await audit(null, 'SIGNUP_REQUESTED', 'signup_request', signupId, { employee_id: empId, email: emailTrimmed });

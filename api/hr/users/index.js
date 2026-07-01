@@ -10,7 +10,7 @@ async function handler(req, res) {
 
   if (req.method === 'GET') {
     const rows = await all(`
-      SELECT employee_id, username, full_name, department, position, email, role, status
+      SELECT employee_id, full_name, department, position, email, role, status
       FROM employees ORDER BY status ASC, full_name ASC
     `);
     return res.status(200).json({ users: rows });

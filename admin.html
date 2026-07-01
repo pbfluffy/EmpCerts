@@ -21,10 +21,8 @@
     <div class="card">
       <h2>Create User</h2>
       <form id="createForm">
-        <div class="flex-row">
-          <div style="flex:1"><label>Username</label><input id="c_username" required></div>
-          <div style="flex:1"><label>Temp Password</label><input id="c_password" required></div>
-        </div>
+        <label>Employee ID (optional — auto-assigned if blank)</label>
+        <input id="c_employee_id" type="number" min="1" placeholder="e.g. 1001">
         <label>Full Name</label><input id="c_full_name" required>
         <div class="flex-row">
           <div style="flex:1"><label>Department</label><input id="c_department"></div>
@@ -40,23 +38,23 @@
         </select>
         <button class="btn" type="submit">Create User</button>
         <div class="error" id="createErr"></div>
-        <div class="success-msg" id="createOk"></div>
+        <div id="createOk" style="display:none;margin-top:12px;padding:12px;background:var(--success-bg);border-radius:6px;font-size:13px"></div>
       </form>
     </div>
 
     <div class="card">
       <h2>Users</h2>
-      <input type="text" id="userSearch" placeholder="Search by name, username, email, or department..." style="margin-bottom:14px">
+      <input type="text" id="userSearch" placeholder="Search by name, email, or department..." style="margin-bottom:14px">
 
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Active</h3>
       <div class="table-wrap"><table>
-        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th></th></tr></thead>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th></th></tr></thead>
         <tbody id="activeUserRows"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table></div>
 
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin:20px 0 8px">Disabled</h3>
       <div class="table-wrap"><table>
-        <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th></th></tr></thead>
+        <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th></th></tr></thead>
         <tbody id="disabledUserRows"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table></div>
     </div>
@@ -65,7 +63,7 @@
       <summary style="cursor:pointer;font-weight:600;font-size:14px">Bulk Import Users (CSV)</summary>
       <div style="margin-top:14px">
         <p class="hint">
-          CSV columns: <code>Employee_ID,username,full_name,department,position,email,role</code><br>
+          CSV columns: <code>Employee_ID,full_name,department,position,email,role</code><br>
           <strong>New users</strong>: a secure temporary password is auto-generated and shown after import. The user must set a new password on first login.<br>
           <strong>Existing users</strong> (matched by Employee_ID): info is updated, password is never touched.<br>
           <code>role</code> must be one of: employee, hr_staff, hr_director, admin (defaults to employee if blank).<br>
@@ -116,8 +114,7 @@
     <p class="hint" style="margin-bottom:12px">Fill in the employee details below before approving. These will be saved to their account.</p>
     <label>Full Name <span style="color:var(--danger)">*</span></label>
     <input type="text" id="signupFullName" required placeholder="Jane Doe">
-    <label>Username <span style="color:var(--danger)">*</span></label>
-    <input type="text" id="signupUsername" required placeholder="jdoe">
+
     <div class="flex-row">
       <div style="flex:1"><label>Department <span style="color:var(--danger)">*</span></label><input type="text" id="signupDepartment" required placeholder="Engineering"></div>
       <div style="flex:1"><label>Position <span style="color:var(--danger)">*</span></label><input type="text" id="signupPosition" required placeholder="Developer"></div>
@@ -173,12 +170,12 @@ async function loadUsers() {
 
 function renderUserTables() {
   const query = document.getElementById('userSearch').value.trim().toLowerCase();
-  const matches = (u) => !query || [u.username, u.full_name, u.email, u.department, u.position]
+  const matches = (u) => !query || [u.full_name, u.email, u.department, u.position]
     .filter(Boolean).some(field => field.toLowerCase().includes(query));
 
   const rowHtml = (u) => `
     <tr>
-      <td>${u.employee_id}</td><td>${u.username}</td><td>${u.full_name}</td>
+      <td>${u.employee_id}</td><td>${u.full_name}</td>
       <td>${u.email || ''}</td><td>${u.department || ''}</td><td>${u.role}</td>
       <td>
         <button class="btn small ${u.status==='active'?'danger':''}" onclick="toggleStatus(${u.employee_id}, '${u.status}')">
@@ -194,11 +191,11 @@ function renderUserTables() {
 
   document.getElementById('activeUserRows').innerHTML = active.length > 0
     ? active.map(rowHtml).join('')
-    : `<tr><td colspan="7">${query ? 'No matches.' : 'No active users.'}</td></tr>`;
+    : `<tr><td colspan="6">${query ? 'No matches.' : 'No active users.'}</td></tr>`;
 
   document.getElementById('disabledUserRows').innerHTML = disabled.length > 0
     ? disabled.map(rowHtml).join('')
-    : `<tr><td colspan="7">${query ? 'No matches.' : 'No disabled users.'}</td></tr>`;
+    : `<tr><td colspan="6">${query ? 'No matches.' : 'No disabled users.'}</td></tr>`;
 }
 
 document.getElementById('userSearch').addEventListener('input', renderUserTables);
@@ -243,7 +240,6 @@ function openSignupModal(signup) {
   document.getElementById('signupModalInfo').innerHTML =
     `<strong>Employee ID:</strong> ${signup.employee_id || '—'}<br><strong>Email:</strong> ${signup.email}<br><strong>Submitted:</strong> ${new Date(signup.created_date).toLocaleString()}`;
   document.getElementById('signupFullName').value = '';
-  document.getElementById('signupUsername').value = '';
   document.getElementById('signupDepartment').value = '';
   document.getElementById('signupPosition').value = '';
   document.getElementById('signupRole').value = 'employee';
@@ -259,11 +255,11 @@ async function decideSignup(decision) {
 
   if (decision === 'Approved') {
     const full_name = document.getElementById('signupFullName').value.trim();
-    const username = document.getElementById('signupUsername').value.trim();
+    
     const department = document.getElementById('signupDepartment').value.trim();
     const position = document.getElementById('signupPosition').value.trim();
-    if (!full_name || !username || !department || !position) {
-      errEl.textContent = 'All fields (Full Name, Username, Department, Position) are required before approving.';
+    if (!full_name || !department || !position) {
+      errEl.textContent = 'All fields (Full Name, Department, Position) are required before approving.';
       return;
     }
   }
@@ -278,7 +274,6 @@ async function decideSignup(decision) {
       comment,
       role: document.getElementById('signupRole').value,
       full_name: document.getElementById('signupFullName').value.trim(),
-      username: document.getElementById('signupUsername').value.trim(),
       department: document.getElementById('signupDepartment').value.trim(),
       position: document.getElementById('signupPosition').value.trim()
     });
@@ -294,8 +289,8 @@ document.getElementById('rejectSignupBtn').onclick = () => decideSignup('Rejecte
 
 document.getElementById('downloadTemplate').addEventListener('click', (e) => {
   e.preventDefault();
-  const csv = 'Employee_ID,username,full_name,department,position,email,role\n' +
-              '1001,jdoe,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
+  const csv = 'Employee_ID,full_name,department,position,email,role\n' +
+              '1001,Jane Doe,Engineering,Developer,jane.doe@company.com,employee\n';
   const blob = new Blob([csv], { type: 'text/csv' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -360,18 +355,20 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const errEl = document.getElementById('createErr');
   const okEl = document.getElementById('createOk');
-  errEl.textContent = ''; okEl.textContent = '';
+  errEl.textContent = ''; okEl.style.display = 'none';
   try {
-    await api('POST', '/api/admin/users', {
-      username: document.getElementById('c_username').value,
-      password: document.getElementById('c_password').value,
+    const result = await api('POST', '/api/admin/users', {
+      employee_id: document.getElementById('c_employee_id').value || undefined,
       full_name: document.getElementById('c_full_name').value,
       department: document.getElementById('c_department').value,
       position: document.getElementById('c_position').value,
       email: document.getElementById('c_email').value,
       role: document.getElementById('c_role').value
     });
-    okEl.textContent = 'User created.';
+    okEl.style.display = '';
+    okEl.innerHTML = `User created (Employee ID: <strong>${result.employee_id}</strong>).<br>
+      Temporary password: <strong style="font-family:monospace;color:var(--danger)">${result.temp_password}</strong><br>
+      <span style="color:var(--muted);font-size:12px">Share this with the employee. They will be asked to set a new password on first login.</span>`;
     e.target.reset();
     await loadUsers();
   } catch (err) {

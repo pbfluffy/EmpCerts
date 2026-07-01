@@ -13,7 +13,7 @@
   <div class="card">
     <h2>Employees</h2>
     <p class="hint" style="margin-bottom:12px">You can view and update employee information. Password, role, and account status changes are managed by the System Administrator.</p>
-    <input type="text" id="userSearch" placeholder="Search by name, username, email, or department...">
+    <input type="text" id="userSearch" placeholder="Search by name, email, or department...">
     <div class="table-wrap" style="margin-top:14px">
       <table>
         <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Dept</th><th>Position</th><th>Role</th><th>Status</th><th></th></tr></thead>
@@ -67,7 +67,7 @@ async function loadUsers() {
 function renderTable() {
   const q = document.getElementById('userSearch').value.trim().toLowerCase();
   const filtered = q
-    ? allUsers.filter(u => [u.full_name, u.username, u.email, u.department, u.position]
+    ? allUsers.filter(u => [u.full_name, u.email, u.department, u.position]
         .filter(Boolean).some(v => v.toLowerCase().includes(q)))
     : allUsers;
 
@@ -94,7 +94,7 @@ document.getElementById('userSearch').addEventListener('input', renderTable);
 
 function openEdit(u) {
   editingId = u.employee_id;
-  document.getElementById('editInfo').textContent = `Employee ID: ${u.employee_id} · ${u.username}`;
+  document.getElementById('editInfo').textContent = `Employee ID: ${u.employee_id}`;
   document.getElementById('edit_full_name').value = u.full_name || '';
   document.getElementById('edit_email').value = u.email || '';
   document.getElementById('edit_department').value = u.department || '';
