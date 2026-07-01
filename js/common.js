@@ -24,13 +24,24 @@ function badge(status) {
   return `<span class="badge ${cls}">${status}</span>`;
 }
 
+const ROLE_LABELS = {
+  employee:    'Employee',
+  hr_staff:    'HR Staff',
+  hr_director: 'HR Director',
+  admin:       'System Administrator'
+};
+
+function roleLabel(role) {
+  return ROLE_LABELS[role] || role;
+}
+
 function renderTopbar(user) {
   const el = document.getElementById('topbar');
   if (!el) return;
   el.innerHTML = `
     <h1>Employee Certificate System</h1>
     <div class="who">
-      ${user.full_name} &middot; ${user.role.replace('_',' ')}
+      ${user.full_name} &middot; ${roleLabel(user.role)}
       <button onclick="logout()">Log out</button>
     </div>
   `;
