@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Login — Employee Certificate System</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -10,11 +11,11 @@
   <div class="card login-card">
     <h1>Employee Certificate System</h1>
     <form id="loginForm">
-      <label>Username (Employee ID or Email)</label>
-      <input type="text" id="username" required autocomplete="username">
+      <label>Email</label>
+      <input type="email" id="email" required autocomplete="email" placeholder="your.email@company.com">
       <label>Password</label>
       <input type="password" id="password" required autocomplete="current-password">
-      <button class="btn" style="width:100%" type="submit">Log In</button>
+      <button class="btn" style="width:100%;margin-top:18px" type="submit">Log In</button>
       <div class="error" id="err"></div>
     </form>
     <p class="hint" style="text-align:center;margin-top:14px">
@@ -25,7 +26,7 @@
 <script>
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
   e.preventDefault();
-  const username = document.getElementById('username').value.trim();
+  const email = document.getElementById('email').value.trim();
   const password = document.getElementById('password').value;
   const errEl = document.getElementById('err');
   errEl.textContent = '';
@@ -33,7 +34,7 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
     const res = await fetch('/api/auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'login', username, password })
+      body: JSON.stringify({ action: 'login', email, password })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Login failed');

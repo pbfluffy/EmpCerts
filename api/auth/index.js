@@ -15,15 +15,13 @@ module.exports = async (req, res) => {
   const action = body.action;
 
   if (action === 'login') {
-    const { username, password } = body;
-    if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password are required' });
+    // Login is by email only.
+    const { email, password } = body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
     }
-    const identifier = String(username).trim();
-    const isNumericId = /^\d+$/.test(identifier);
-    const user = isNumericId
-      ? await get('SELECT * FROM employees WHERE employee_id = ? OR username = ?', [Number(identifier), identifier])
-      : await get('SELECT * FROM employees WHERE username = ? OR email = ?', [identifier, identifier]);
+    const emailTrimmed = String(email).trim().toLowerCase();
+    const user = await get('SELECT * FROM employees WHERE LOWER(email) = ?', [emailTrimmed]);
 
     if (!user || user.status !== 'active') return res.status(401).json({ error: 'Invalid credentials' });
     const ok = bcrypt.compareSync(password, user.password_hash);
@@ -46,33 +44,60 @@ module.exports = async (req, res) => {
   }
 
   if (action === 'signup') {
-    const { username, password, full_name, department, position, email } = body;
-    if (!username || !password || !full_name || !email) {
-      return res.status(400).json({ error: 'Username, password, full name, and email are required' });
+    // Simplified self-service signup: only Employee ID, email, and password.
+    // Everything else (name, department, position, role, username) is filled
+    // in by an admin when they review and approve the request.
+    const { employee_id, email, password } = body;
+
+    if (!employee_id || !email || !password) {
+      return res.status(400).json({ error: 'Employee ID, email, and password are required' });
+    }
+    const empId = Number(employee_id);
+    if (!Number.isInteger(empId) || empId <= 0) {
+      return res.status(400).json({ error: 'Employee ID must be a positive whole number' });
     }
     if (String(password).length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
-    const existingUser = await get('SELECT employee_id FROM employees WHERE username = ?', [username]);
-    if (existingUser) return res.status(409).json({ error: 'That username is already in use by an existing account' });
-    const existingSignup = await get(`SELECT signup_id FROM signup_requests WHERE username = ? AND status = 'Pending'`, [username]);
-    if (existingSignup) return res.status(409).json({ error: 'A signup request with that username is already pending approval' });
+    const emailTrimmed = String(email).trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTrimmed)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+
+    const existingId = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [empId]);
+    if (existingId) {
+      return res.status(409).json({ error: 'That Employee ID is already registered. If this is your ID, contact your administrator.' });
+    }
+    const existingEmail = await get('SELECT employee_id FROM employees WHERE LOWER(email) = ?', [emailTrimmed]);
+    if (existingEmail) {
+      return res.status(409).json({ error: 'That email is already associated with an existing account' });
+    }
+    const existingSignup = await get(
+      `SELECT signup_id FROM signup_requests WHERE status = 'Pending' AND (employee_id = ? OR email = ?)`,
+      [empId, emailTrimmed]
+    );
+    if (existingSignup) {
+      return res.status(409).json({ error: 'A signup request with that Employee ID or email is already pending approval' });
+    }
 
     const hash = bcrypt.hashSync(password, 10);
+    // 'username' and 'full_name' are placeholders here (those columns are
+    // required NOT NULL on this table) — the admin overwrites them with real
+    // values when approving.
     const result = await run(`
-      INSERT INTO signup_requests (username, password_hash, full_name, department, position, email)
-      VALUES (?,?,?,?,?,?)
-    `, [username, hash, full_name, department || null, position || null, email]);
+      INSERT INTO signup_requests (employee_id, username, password_hash, full_name, email)
+      VALUES (?,?,?,?,?)
+    `, [empId, emailTrimmed, hash, '(Pending — to be filled in by admin)', emailTrimmed]);
 
     const signupId = Number(result.lastInsertRowid);
-    await audit(null, 'SIGNUP_REQUESTED', 'signup_request', signupId, { username });
+    await audit(null, 'SIGNUP_REQUESTED', 'signup_request', signupId, { employee_id: empId, email: emailTrimmed });
 
     const admins = (await all(`SELECT email FROM employees WHERE role = 'admin' AND status = 'active'`))
       .map(a => a.email).filter(Boolean);
     sendMail({
       to: admins,
-      subject: `[Action needed] New account request: ${full_name}`,
-      text: `${full_name} (${username}, ${email}) has requested an account.\n\nLog in to review: ${process.env.APP_URL || ''}/admin.html`
+      subject: `[Action needed] New account request: Employee ID ${empId}`,
+      text: `A signup request was submitted for Employee ID ${empId} (${emailTrimmed}).\n\nLog in to review: ${process.env.APP_URL || ''}/admin.html`
     }).catch(() => {});
 
     return res.status(201).json({ ok: true, message: 'Your request has been submitted and is pending administrator approval.' });
@@ -109,7 +134,6 @@ module.exports = async (req, res) => {
     if (!signature || typeof signature !== 'string' || !signature.startsWith('data:image/')) {
       return res.status(400).json({ error: 'A valid image (PNG or JPG) is required' });
     }
-    // Rough size guard — base64 inflates size ~33%, cap stored signatures around ~300KB raw.
     if (signature.length > 400000) {
       return res.status(400).json({ error: 'Signature image is too large — please use a smaller file (under ~250KB)' });
     }

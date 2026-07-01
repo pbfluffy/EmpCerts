@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin — Employee Certificate System</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -48,16 +49,16 @@
       <input type="text" id="userSearch" placeholder="Search by name, username, email, or department..." style="margin-bottom:14px">
 
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Active</h3>
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th></th></tr></thead>
         <tbody id="activeUserRows"><tr><td colspan="6">Loading...</td></tr></tbody>
-      </table>
+      </table></div>
 
       <h3 style="font-size:13px;color:var(--muted);text-transform:uppercase;margin:20px 0 8px">Disabled</h3>
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>ID</th><th>Username</th><th>Name</th><th>Dept</th><th>Role</th><th></th></tr></thead>
         <tbody id="disabledUserRows"><tr><td colspan="6">Loading...</td></tr></tbody>
-      </table>
+      </table></div>
     </div>
 
     <details class="card">
@@ -83,17 +84,17 @@
     <div class="card">
       <h2>Pending Signup Requests</h2>
       <p class="hint">People who used "Request an account" on the login page show up here until approved or rejected.</p>
-      <table>
-        <thead><tr><th>Username</th><th>Name</th><th>Dept / Position</th><th>Email</th><th>Submitted</th><th></th></tr></thead>
-        <tbody id="signupRows"><tr><td colspan="6">Loading...</td></tr></tbody>
-      </table>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Emp ID</th><th>Email</th><th>Submitted</th><th></th></tr></thead>
+        <tbody id="signupRows"><tr><td colspan="4">Loading...</td></tr></tbody>
+      </table></div>
     </div>
   </div>
 
   <div id="rolesTab" style="display:none">
     <div class="card">
       <h2>Roles &amp; What They Can Do</h2>
-      <table>
+      <div class="table-wrap"><table>
         <thead><tr><th>Role</th><th>Permissions</th></tr></thead>
         <tbody>
           <tr><td><strong>Employee</strong></td><td>Submit certificate requests; view and download only their own certificates</td></tr>
@@ -101,16 +102,25 @@
           <tr><td><strong>HR Director</strong></td><td>Approve or reject salary certificate requests, entering the official salary figure at approval time; view all employees' requests (read-only)</td></tr>
           <tr><td><strong>System Administrator</strong></td><td>User and role management only — create/edit/delete users, assign roles, enable/disable accounts, review signup requests. No access to certificate requests or approvals.</td></tr>
         </tbody>
-      </table>
+      </table></div>
     </div>
   </div>
 
 </div>
 
 <div class="modal-bg" id="signupModalBg">
-  <div class="modal">
+  <div class="modal" style="width:480px">
     <h2>Review Signup Request</h2>
-    <div id="signupModalInfo" style="font-size:13px;margin-bottom:10px"></div>
+    <div id="signupModalInfo" style="font-size:13px;margin-bottom:14px;padding:10px;background:var(--bg);border-radius:6px"></div>
+    <p class="hint" style="margin-bottom:12px">Fill in the employee details below before approving. These will be saved to their account.</p>
+    <label>Full Name</label>
+    <input type="text" id="signupFullName" required placeholder="Jane Doe">
+    <label>Username (for internal reference)</label>
+    <input type="text" id="signupUsername" required placeholder="jdoe">
+    <div class="flex-row">
+      <div style="flex:1"><label>Department</label><input type="text" id="signupDepartment" placeholder="Engineering"></div>
+      <div style="flex:1"><label>Position</label><input type="text" id="signupPosition" placeholder="Developer"></div>
+    </div>
     <label>Assign Role</label>
     <select id="signupRole">
       <option value="employee">Employee</option>
@@ -214,14 +224,12 @@ async function loadSignups() {
   badge.textContent = signups.length > 0 ? `(${signups.length})` : '';
   const tbody = document.getElementById('signupRows');
   if (signups.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6">No pending signup requests.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4">No pending signup requests.</td></tr>`;
     return;
   }
   tbody.innerHTML = signups.map(s => `
     <tr>
-      <td>${s.username}</td>
-      <td>${s.full_name}</td>
-      <td>${s.department || ''} / ${s.position || ''}</td>
+      <td>${s.employee_id || '—'}</td>
       <td>${s.email}</td>
       <td>${new Date(s.created_date).toLocaleString()}</td>
       <td><button class="btn small" onclick='openSignupModal(${JSON.stringify(s)})'>Review</button></td>
@@ -232,7 +240,11 @@ async function loadSignups() {
 function openSignupModal(signup) {
   currentSignupId = signup.signup_id;
   document.getElementById('signupModalInfo').innerHTML =
-    `<strong>${signup.full_name}</strong> (${signup.username})<br>${signup.email}<br>${signup.department || ''} ${signup.position || ''}`;
+    `<strong>Employee ID:</strong> ${signup.employee_id || '—'}<br><strong>Email:</strong> ${signup.email}<br><strong>Submitted:</strong> ${new Date(signup.created_date).toLocaleString()}`;
+  document.getElementById('signupFullName').value = '';
+  document.getElementById('signupUsername').value = '';
+  document.getElementById('signupDepartment').value = '';
+  document.getElementById('signupPosition').value = '';
   document.getElementById('signupRole').value = 'employee';
   document.getElementById('signupComment').value = '';
   document.getElementById('signupModalErr').textContent = '';
@@ -243,13 +255,29 @@ document.getElementById('cancelSignupBtn').onclick = () => document.getElementBy
 async function decideSignup(decision) {
   const errEl = document.getElementById('signupModalErr');
   const comment = document.getElementById('signupComment').value;
+
+  if (decision === 'Approved') {
+    const full_name = document.getElementById('signupFullName').value.trim();
+    const username = document.getElementById('signupUsername').value.trim();
+    if (!full_name || !username) {
+      errEl.textContent = 'Full name and username are required before approving.';
+      return;
+    }
+  }
   if (decision === 'Rejected' && !comment.trim()) {
     errEl.textContent = 'A comment is required when rejecting.';
     return;
   }
   try {
     await api('POST', '/api/admin/signups', {
-      signup_id: currentSignupId, decision, comment, role: document.getElementById('signupRole').value
+      signup_id: currentSignupId,
+      decision,
+      comment,
+      role: document.getElementById('signupRole').value,
+      full_name: document.getElementById('signupFullName').value.trim(),
+      username: document.getElementById('signupUsername').value.trim(),
+      department: document.getElementById('signupDepartment').value.trim(),
+      position: document.getElementById('signupPosition').value.trim()
     });
     document.getElementById('signupModalBg').classList.remove('open');
     await loadSignups();
