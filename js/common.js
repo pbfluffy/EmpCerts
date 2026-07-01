@@ -68,4 +68,14 @@ function renderNav(user, active) {
     .filter(t => t.roles.includes(user.role))
     .map(t => `<a href="${t.href}" class="${active === t.href ? 'active' : ''}">${t.label}</a>`)
     .join('');
+
+  // For HR roles: fetch pending approval count and badge the Approvals tab
+  if (['hr_staff', 'hr_director'].includes(user.role)) {
+    api('GET', '/api/approvals').then(({ requests }) => {
+      if (requests.length > 0) {
+        const link = el.querySelector('a[href="approvals.html"]');
+        if (link) link.textContent = `Approvals (${requests.length})`;
+      }
+    }).catch(() => {});
+  }
 }

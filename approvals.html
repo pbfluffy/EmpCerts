@@ -62,10 +62,6 @@ async function load() {
     const { requests } = await api('GET', '/api/approvals');
     const tbody = document.getElementById('rows');
 
-    // Update the nav tab label with pending count
-    const navLink = document.querySelector('#nav a[href="approvals.html"]');
-    if (navLink) navLink.textContent = requests.length > 0 ? `Approvals (${requests.length})` : 'Approvals';
-
     if (requests.length === 0) {
       tbody.innerHTML = `<tr><td colspan="7">No pending approvals.</td></tr>`;
       return;
