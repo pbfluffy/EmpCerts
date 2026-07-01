@@ -6,7 +6,7 @@ const bcrypt = require('bcryptjs');
 const { run, get } = require('../lib/db');
 
 const users = [
-  { employee_id: 999, username: 'admin', password: 'Admin@123', full_name: 'System Administrator', department: 'IT', position: 'Administrator', email: 'admin@company.com', role: 'admin' },
+  { username: 'admin', password: 'Admin@123', full_name: 'System Administrator', department: 'IT', position: 'Administrator', email: 'admin@company.com', role: 'admin' },
   { username: 'hrdirector', password: 'HrDir@123', full_name: 'Jane Director', department: 'Human Resources', position: 'HR Director', email: 'jane.director@company.com', role: 'hr_director' },
   { username: 'hrstaff', password: 'HrStaff@123', full_name: 'Sam Staff', department: 'Human Resources', position: 'HR Officer', email: 'sam.staff@company.com', role: 'hr_staff' },
   { username: 'employee1', password: 'Employee@123', full_name: 'Alex Employee', department: 'Engineering', position: 'Software Engineer', email: 'alex.employee@company.com', role: 'employee' },

@@ -132,42 +132,32 @@ async function handler(req, res) {
       return handleBulkImport(u, body.csv, res);
     }
 
-    // Single user creation — auto-assign username from employee_id if provided,
-    // else DB auto-assigns employee_id and we update username afterward.
+    // Single user creation — Employee ID is required (must come from HR records)
     let { full_name, department, position, email, role, employee_id } = body;
-    if (!full_name || !email) {
-      return res.status(400).json({ error: 'full_name and email are required' });
+    if (!full_name || !email || !employee_id) {
+      return res.status(400).json({ error: 'Employee ID, full_name, and email are required' });
     }
     role = ROLES.includes(role) ? role : 'employee';
 
     const existingEmail = await get('SELECT employee_id FROM employees WHERE LOWER(email) = ?', [email.toLowerCase()]);
     if (existingEmail) return res.status(409).json({ error: 'Email already in use' });
 
+    const empId = Number(employee_id);
+    if (!Number.isInteger(empId) || empId <= 0) {
+      return res.status(400).json({ error: 'Employee ID must be a positive whole number' });
+    }
+    const existingId = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [empId]);
+    if (existingId) return res.status(409).json({ error: `Employee ID ${empId} is already in use` });
+
     const tempPassword = generateTempPassword();
     const hash = bcrypt.hashSync(tempPassword, 10);
+    await run(`
+      INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, must_change_password)
+      VALUES (?,?,?,?,?,?,?,?,1)
+    `, [empId, autoUsername(empId), hash, full_name, department || null, position || null, email, role]);
 
-    let newEmployeeId;
-    if (employee_id) {
-      const empId = Number(employee_id);
-      const existingId = await get('SELECT employee_id FROM employees WHERE employee_id = ?', [empId]);
-      if (existingId) return res.status(409).json({ error: `Employee ID ${empId} is already in use` });
-      await run(`
-        INSERT INTO employees (employee_id, username, password_hash, full_name, department, position, email, role, must_change_password)
-        VALUES (?,?,?,?,?,?,?,?,1)
-      `, [empId, autoUsername(empId), hash, full_name, department || null, position || null, email, role]);
-      newEmployeeId = empId;
-    } else {
-      // Let DB auto-assign, then update username to match
-      const result = await run(`
-        INSERT INTO employees (username, password_hash, full_name, department, position, email, role, must_change_password)
-        VALUES (?,?,?,?,?,?,?,1)
-      `, ['_tmp', hash, full_name, department || null, position || null, email, role]);
-      newEmployeeId = Number(result.lastInsertRowid);
-      await run('UPDATE employees SET username = ? WHERE employee_id = ?', [autoUsername(newEmployeeId), newEmployeeId]);
-    }
-
-    await audit(u.employee_id, 'CREATE_USER', 'employee', newEmployeeId, { role });
-    return res.status(201).json({ employee_id: newEmployeeId, temp_password: tempPassword });
+    await audit(u.employee_id, 'CREATE_USER', 'employee', empId, { role });
+    return res.status(201).json({ employee_id: empId, temp_password: tempPassword });
   }
 
   res.status(405).json({ error: 'Method not allowed' });

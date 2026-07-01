@@ -21,8 +21,8 @@
     <div class="card">
       <h2>Create User</h2>
       <form id="createForm">
-        <label>Employee ID (optional — auto-assigned if blank)</label>
-        <input id="c_employee_id" type="number" min="1" placeholder="e.g. 1001">
+        <label>Employee ID</label>
+        <input id="c_employee_id" type="number" min="1" placeholder="e.g. 1001" required>
         <label>Full Name</label><input id="c_full_name" required>
         <div class="flex-row">
           <div style="flex:1"><label>Department</label><input id="c_department"></div>
@@ -358,7 +358,7 @@ document.getElementById('createForm').addEventListener('submit', async (e) => {
   errEl.textContent = ''; okEl.style.display = 'none';
   try {
     const result = await api('POST', '/api/admin/users', {
-      employee_id: document.getElementById('c_employee_id').value || undefined,
+      employee_id: document.getElementById('c_employee_id').value,
       full_name: document.getElementById('c_full_name').value,
       department: document.getElementById('c_department').value,
       position: document.getElementById('c_position').value,
